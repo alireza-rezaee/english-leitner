@@ -1,2 +1,5 @@
 <Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EnglishLeitner.WebClient/EnglishLeitner.WebClient.csproj" />
+  </Folder>
 </Solution>

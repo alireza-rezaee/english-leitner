@@ -1,0 +1,50 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+
+jobs:
+  gh-pages:
+    runs-on: ubuntu-latest
+    env:
+      DOTNET_NOLOGO: true
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      SDK_VERSION: 10.0.x
+    steps:
+      - uses: actions/cache@v6
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-${{ env.SDK_VERSION }}
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.SDK_VERSION }}
+
+      - name: Publish .NET Project
+        run: dotnet publish EnglishLeitner.WebClient.csproj -c Release -o release --nologo
+        working-directory: ./src/EnglishLeitner.WebClient
+
+      - name: Change base-tag in index.html from / to english-leitner
+        run: sed -i 's/<base href="\/" \/>/<base href="\/english-leitner\/" \/>/g' release/wwwroot/index.html
+        working-directory: ./src/EnglishLeitner.WebClient
+
+      - name: copy index.html to 404.html
+        run: cp release/wwwroot/index.html release/wwwroot/404.html
+        working-directory: ./src/EnglishLeitner.WebClient
+
+      - name: Add .nojekyll file
+        run: touch release/wwwroot/.nojekyll
+        working-directory: ./src/EnglishLeitner.WebClient
+
+      - name: Commit wwwroot to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: ./src/EnglishLeitner.WebClient/release/wwwroot
