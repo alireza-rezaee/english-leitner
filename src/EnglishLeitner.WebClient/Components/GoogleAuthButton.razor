@@ -1,0 +1,207 @@
+@using System.Security.Claims
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using EnglishLeitner.WebClient.Services
+@using EnglishLeitner.WebClient.Settings
+@using Excubo.Blazor.ScriptInjection
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.Configuration
+@using Microsoft.JSInterop
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+@inject ILocalStorageService LocalStorage
+@inject JwtAuthenticationStateProvider AuthStateProvider
+@inject IScriptInjectionTracker ScriptInjectionTracker
+
+<AddScript Src="@GoogleIdentityScriptUrl" Async="true" Defer="true" />
+
+<AuthorizeView>
+    <Authorized>
+        <MudMenu AnchorOrigin="Origin.CenterCenter">
+            <ActivatorContent Context="menuContext">
+                <MudIconButton @onclick="@menuContext.ToggleAsync" Class="ms-2">
+                    <MudText Style="line-height: 0;">
+                        <MudTooltip Placement="Placement.Left">
+                            <ChildContent>
+                                <MudAvatar Size="Size.Small">
+                                    <MudImage Src="@UserAvatar" Alt="User Profile"></MudImage>
+                                </MudAvatar>
+                            </ChildContent>
+                            <TooltipContent>
+                                <MudText Typo="Typo.body2" Align="Align.Left" Style="font-size: 12px; white-space: nowrap;">
+                                    <b>GoogleAccount</b>
+                                </MudText>
+                                <MudText Typo="Typo.body2" Align="Align.Left" Style="font-size: 12px; white-space: nowrap;">
+                                    @UserName
+                                </MudText>
+                                <MudText Typo="Typo.body2" Align="Align.Left" Style="font-size: 12px; white-space: nowrap;">
+                                    @UserEmail
+                                </MudText>
+                            </TooltipContent>
+                        </MudTooltip>
+                    </MudText>
+                </MudIconButton>
+            </ActivatorContent>
+            <ChildContent>
+                <MudMenuItem Icon="@Icons.Material.Filled.Logout" Label="Logout" OnClick="LogoutAsync" />
+            </ChildContent>
+        </MudMenu>
+    </Authorized>
+    <NotAuthorized>
+        <div @key="@IsDarkMode" id="google-signin-button" class="ms-2"></div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public bool IsDarkMode { get; set; } = false;
+
+    private bool IsLoggedIn => AuthStateProvider.User?.Identity?.IsAuthenticated ?? false;
+    private string? UserAvatar => AuthStateProvider.User?.FindFirst("picture")?.Value;
+    private string? UserName => AuthStateProvider.User?.Identity?.Name;
+    private string? UserEmail => AuthStateProvider.User?.FindFirst("email")?.Value;
+    private DateTimeOffset? AuthExpireTime
+    {
+        get
+        {
+            string? expClaim = AuthStateProvider.User?.FindFirst(c => c.Type == "exp")?.Value;
+
+            if (!string.IsNullOrEmpty(expClaim) && double.TryParse(expClaim, out double expSeconds))
+                return DateTimeOffset.FromUnixTimeSeconds((long)expSeconds);
+            else
+                return null;
+        }
+    }
+
+    private const string GoogleIdentityScriptUrl = "https://accounts.google.com/gsi/client";
+    private string _clientId = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+    private IJSObjectReference? _jsModule;
+    private IJSObjectReference? _jsGoogleAuth;
+    private IJSObjectReference? _jsActivityTracker;
+    private DotNetObjectReference<GoogleAuthButton>? _dotnetRef;
+    private bool _isActivityTrackerInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            GoogleSettings googleSettings = Configuration
+                .GetRequiredSection("Google").Get<GoogleSettings>()!;
+
+            _clientId = googleSettings.ClientId;
+
+            _dotnetRef = DotNetObjectReference.Create(this);
+
+            await ScriptInjectionTracker.LoadedAsync(GoogleIdentityScriptUrl);
+
+            _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import", "./Components/GoogleAuthButton.razor.js");
+
+            _jsGoogleAuth = await _jsModule.InvokeAsync<IJSObjectReference>(
+                "createGoogleAuth", _clientId, _dotnetRef);
+
+            AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        }
+
+        await OnAuthStateChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnGoogleSignInAsync(string credentialToken)
+        => await AuthStateProvider.NotifyUserAuthenticationAsync(credentialToken);
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        await OnAuthStateChanged();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnAuthStateChanged()
+    {
+        if (IsLoggedIn)
+            await InitializeActivityAsync();
+        else
+        {
+            await RenderSigninButtonAsync();
+            await DisposeActivityAsync();
+        }
+    }
+
+    private async Task RefreshTokenAsync()
+    {
+        if (_jsGoogleAuth is not null)
+            await _jsGoogleAuth.InvokeVoidAsync("refreshToken");
+    }
+
+    private async Task RenderSigninButtonAsync()
+    {
+        if (_jsGoogleAuth is not null)
+            await _jsGoogleAuth.InvokeVoidAsync("renderButton", "#google-signin-button", IsDarkMode);
+    }
+
+    private async Task LogoutAsync()
+        => await AuthStateProvider.NotifyUserLogoutAsync();
+
+    private async Task InitializeActivityAsync()
+    {
+        if (_isActivityTrackerInitialized)
+            return;
+
+        if (_jsModule is not null && _dotnetRef is not null)
+        {
+            _jsActivityTracker = await _jsModule.InvokeAsync<IJSObjectReference>(
+                "createActivityTracker", _dotnetRef, 30_000);
+
+            _isActivityTrackerInitialized = true;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnActivityAsync()
+    {
+        if (AuthExpireTime is not DateTimeOffset authExpireTime)
+            return;
+
+        TimeSpan timeRemaining = authExpireTime - DateTimeOffset.Now;
+
+        bool isExpireSoon = timeRemaining.TotalMinutes <= 5 && timeRemaining.TotalMinutes > 0;
+        bool isExpired = timeRemaining <= TimeSpan.Zero;
+
+        if (isExpireSoon)
+            await RefreshTokenAsync();
+        else if (isExpired)
+            await LogoutAsync();
+    }
+
+    private async Task DisposeActivityAsync()
+    {
+        if (!_isActivityTrackerInitialized || _jsActivityTracker is null)
+            return;
+
+        await _jsActivityTracker.InvokeVoidAsync("dispose");
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsActivityTracker is not null)
+        {
+            await DisposeActivityAsync();
+            await _jsActivityTracker.DisposeAsync();
+        }
+
+        if (_jsGoogleAuth is not null)
+        {
+            await _jsGoogleAuth.DisposeAsync();
+        }
+
+        if (_jsModule is not null)
+            await _jsModule.DisposeAsync();
+
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+
+        _dotnetRef?.Dispose();
+    }
+}

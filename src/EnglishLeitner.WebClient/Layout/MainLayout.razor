@@ -1,3 +1,4 @@
+@using EnglishLeitner.WebClient.Components
 @inherits LayoutComponentBase
 @inject ILocalStorageService LocalStorage
 
@@ -15,6 +16,7 @@
         <MudLink Href="https://learn.microsoft.com/aspnet/core/" Target="_blank" Color="Color.Inherit" Underline="Underline.None">
             About
         </MudLink>
+        <GoogleAuthButton IsDarkMode="@_isDarkMode" />
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
