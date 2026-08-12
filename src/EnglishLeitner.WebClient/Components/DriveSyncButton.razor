@@ -10,15 +10,30 @@
 @inject ILocalStorageService LocalStorage
 @inject ApplicationAuthenticationStateProvider AuthStateProvider
 
-<AuthorizeView>
-    <Authorized>
-        <MudFab OnClick="@SaveAsync" Color="@SyncColor" Variant="Variant.Text" Size="Size.Medium" StartIcon="@SyncIcon" />
-    </Authorized>
-    <NotAuthorized>
+<ConnectionView>
+    <Online>
+        <AuthorizeView>
+            <Authorized>
+                <MudFab OnClick="@SaveAsync" Color="@SyncColor" Variant="Variant.Text" Size="Size.Medium"
+                        StartIcon="@SyncIcon" />
+            </Authorized>
+            <NotAuthorized>
+                <MudFab Variant="Variant.Text" Size="Size.Medium" StartIcon="@Icons.Material.Outlined.CloudOff"
+                        Disabled="true" />
+            </NotAuthorized>
+        </AuthorizeView>
+    </Online>
+    <Offline>
         <MudFab Variant="Variant.Text" Size="Size.Medium" StartIcon="@Icons.Material.Outlined.CloudOff"
                 Disabled="true" />
-    </NotAuthorized>
-</AuthorizeView>
+    </Offline>
+    <NoInternet>
+        <MudFab Variant="Variant.Text" Size="Size.Medium" StartIcon="@Icons.Material.Outlined.CloudOff"
+                Disabled="true" />
+    </NoInternet>
+</ConnectionView>
+
+
 
 @code {
     private string SyncIcon => _syncStatus switch

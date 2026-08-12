@@ -13,61 +13,71 @@
 @inject ILocalStorageService LocalStorage
 @inject ApplicationAuthenticationStateProvider AuthStateProvider
 
-<AuthorizeView>
-    <Authorized>
-        <MudMenu AnchorOrigin="Origin.CenterCenter">
-            <ActivatorContent Context="menuContext">
-                <MudIconButton @onclick="@menuContext.ToggleAsync">
-                    <MudText Style="line-height: 0;">
-                        <MudTooltip Placement="Placement.Left">
-                            <ChildContent>
-                                <MudAvatar Size="Size.Small">
-                                    <MudImage Src="@UserAvatar" Alt="User Profile"></MudImage>
-                                </MudAvatar>
-                            </ChildContent>
-                            <TooltipContent>
-                                <MudText Typo="Typo.body2" Align="Align.Left"
-                                         Style="font-size: 12px; white-space: nowrap;">
-                                    <b>Google Account</b>
-                                </MudText>
-                                <MudText Typo="Typo.body2" Align="Align.Left"
-                                         Style="font-size: 12px; white-space: nowrap;">
-                                    @UserName
-                                </MudText>
-                                <MudText Typo="Typo.body2" Align="Align.Left"
-                                         Style="font-size: 12px; white-space: nowrap;">
-                                    @UserEmail
-                                </MudText>
-                            </TooltipContent>
-                        </MudTooltip>
-                    </MudText>
-                </MudIconButton>
-            </ActivatorContent>
-            <ChildContent>
-                <MudMenuItem Icon="@Icons.Material.Filled.Logout" Label="Logout" OnClick="LogoutAsync" />
-            </ChildContent>
-        </MudMenu>
-    </Authorized>
-    <NotAuthorized>
-        <MudChip T="string" OnClick="LoginAsync" Variant="Variant.Filled" Class="ms-2 ps-1"
-                 Disabled="@IsSigninDisabled">
-            <AvatarContent>
-                <div class="me-1 mt-1">
-                    @if (_isSigninPopupOpen)
-                    {
-                        <MudProgressCircular Color="Color.Default" Size="Size.Small" Rounded="true" StrokeWidth="6"
-                                             Indeterminate="true" />
-                    }
-                    else
-                    {
-                        <MudIcon Icon="@Icons.Custom.Brands.Google" Title="Favorite" />
-                    }
-                </div>
-            </AvatarContent>
-            <ChildContent>Sign in</ChildContent>
-        </MudChip>
-    </NotAuthorized>
-</AuthorizeView>
+<ConnectionView>
+    <Online>
+        <AuthorizeView>
+            <Authorized>
+                <MudMenu AnchorOrigin="Origin.CenterCenter">
+                    <ActivatorContent Context="menuContext">
+                        <MudIconButton @onclick="@menuContext.ToggleAsync">
+                            <MudText Style="line-height: 0;">
+                                <MudTooltip Placement="Placement.Left">
+                                    <ChildContent>
+                                        <MudAvatar Size="Size.Small">
+                                            <MudImage Src="@UserAvatar" Alt="User Profile"></MudImage>
+                                        </MudAvatar>
+                                    </ChildContent>
+                                    <TooltipContent>
+                                        <MudText Typo="Typo.body2" Align="Align.Left"
+                                                 Style="font-size: 12px; white-space: nowrap;">
+                                            <b>Google Account</b>
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Align="Align.Left"
+                                                 Style="font-size: 12px; white-space: nowrap;">
+                                            @UserName
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Align="Align.Left"
+                                                 Style="font-size: 12px; white-space: nowrap;">
+                                            @UserEmail
+                                        </MudText>
+                                    </TooltipContent>
+                                </MudTooltip>
+                            </MudText>
+                        </MudIconButton>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <MudMenuItem Icon="@Icons.Material.Filled.Logout" Label="Logout" OnClick="LogoutAsync" />
+                    </ChildContent>
+                </MudMenu>
+            </Authorized>
+            <NotAuthorized>
+                <MudChip T="string" OnClick="LoginAsync" Variant="Variant.Filled" Class="ms-2 ps-1"
+                         Disabled="@IsSigninDisabled">
+                    <AvatarContent>
+                        <div class="me-1 mt-1">
+                            @if (_isSigninPopupOpen)
+                            {
+                                <MudProgressCircular Color="Color.Default" Size="Size.Small" Rounded="true" StrokeWidth="6"
+                                                     Indeterminate="true" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Custom.Brands.Google" Title="Favorite" />
+                            }
+                        </div>
+                    </AvatarContent>
+                    <ChildContent>Sign in</ChildContent>
+                </MudChip>
+            </NotAuthorized>
+        </AuthorizeView>
+    </Online>
+    <Offline>
+        <MudFab Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Person" Size="Size.Medium" Disabled="true" />
+    </Offline>
+    <NoInternet>
+        <MudFab Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Person" Size="Size.Medium" Disabled="true" />
+    </NoInternet>
+</ConnectionView>
 
 @code {
     private bool IsLoggedIn => AuthStateProvider.User?.Identity?.IsAuthenticated ?? false;

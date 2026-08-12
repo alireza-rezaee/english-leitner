@@ -1,0 +1,44 @@
+@using EnglishLeitner.WebClient.Services
+@using static EnglishLeitner.WebClient.Services.InternetConnectivityService
+
+@inject IConnectivityService Connectivity;
+
+@if (_status == ConnectivityStatus.Connected)
+{
+    @Online
+}
+else if (_status == ConnectivityStatus.NoInternetNetwork)
+{
+    @NoInternet
+}
+else
+{
+    @Offline
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? Online { get; set; }
+
+    [Parameter]
+    public RenderFragment? NoInternet { get; set; }
+
+    [Parameter]
+    public RenderFragment? Offline { get; set; }
+
+    private ConnectivityStatus _status = ConnectivityStatus.Connected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        _status = Connectivity.Status;
+        Connectivity.ConnectionStatusChanged += ConnectionStatusChanged;
+    }
+
+    private async void ConnectionStatusChanged(object? sender, ConnectivityStatus status)
+    {
+        _status = status;
+        await InvokeAsync(StateHasChanged);
+    }
+}

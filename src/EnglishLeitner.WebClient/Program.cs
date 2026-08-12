@@ -1,5 +1,6 @@
 using EnglishLeitner.WebClient;
 using EnglishLeitner.WebClient.Identity;
+using EnglishLeitner.WebClient.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -11,6 +12,8 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddLocalStorageServices();
+
+builder.Services.AddScoped<IConnectivityService, InternetConnectivityService>();
 
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<ApplicationAuthenticationStateProvider>();

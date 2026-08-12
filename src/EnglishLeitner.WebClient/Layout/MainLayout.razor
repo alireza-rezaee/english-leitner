@@ -1,6 +1,13 @@
 @using EnglishLeitner.WebClient.Components
+@using EnglishLeitner.WebClient.Services
+@using static EnglishLeitner.WebClient.Services.InternetConnectivityService
+
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
+
 @inject ILocalStorageService LocalStorage
+@inject IConnectivityService Connectivity;
+@inject ISnackbar Snackbar
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
@@ -9,23 +16,37 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@DrawerToggle" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="@DrawerToggle" />
         <MudText Typo="Typo.h6" Class="ml-2">Application</MudText>
         <MudSpacer />
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggleAsync" />
         <DriveSyncButton />
         <GoogleAuthButton />
-        <MudFab Href="https://github.com/alireza-rezaee/english-leitner" Variant="Variant.Text" StartIcon="@Icons.Material.Outlined.Info" Size="Size.Medium" />
-    </MudAppBar>
+        <ConnectionView>
+            <Offline>
+                <MudChip T="string" Variant="Variant.Outlined" Color="Color.Error"
+                         Icon="@Icons.Material.Outlined.SignalCellularConnectedNoInternet0Bar" IconColor="Color.Error">
+                    Offline</MudChip>
+                </Offline>
+                <NoInternet>
+                    <MudChip T="string" Variant="Variant.Outlined" Color="Color.Warning"
+                             Icon="@Icons.Material.Outlined.SignalCellularConnectedNoInternet0Bar" IconColor="Color.Warning">No
+                        Internet</MudChip>
+                    </NoInternet>
+                </ConnectionView>
+                <MudFab Href="https://github.com/alireza-rezaee/english-leitner" Variant="Variant.Text"
+                        StartIcon="@Icons.Material.Outlined.Info" Size="Size.Medium" />
+            </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <NavMenu />
-    </MudDrawer>
+            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+                <NavMenu />
+            </MudDrawer>
 
-    <MudMainContent Class="pt-16 pa-4">
-        @Body
-    </MudMainContent>
-</MudLayout>
+            <MudMainContent Class="pt-16 pa-4">
+                @Body
+            </MudMainContent>
+        </MudLayout>
 
 @code {
     private bool _drawerOpen = true;
@@ -44,6 +65,8 @@
             PaletteDark = _darkPalette,
             LayoutProperties = new LayoutProperties()
         };
+
+        Connectivity.ConnectionStatusChanged += ConnectionStatusChanged;
     }
 
     private void DrawerToggle()
@@ -55,6 +78,23 @@
     {
         _isDarkMode = !_isDarkMode;
         await LocalStorage.SetItemAsync("isDarkMode", _isDarkMode);
+    }
+
+    private async void ConnectionStatusChanged(object? sender, ConnectivityStatus status)
+    {
+        Severity severity;
+        string message;
+
+        if (status == ConnectivityStatus.Connected)
+            (severity, message) = (Severity.Success, "You're back online.");
+        else if (status == ConnectivityStatus.Offline)
+            (severity, message) = (Severity.Error, "Network connection lost.");
+        else
+            (severity, message) = (Severity.Warning, "Internet connection lost.");
+
+        Snackbar.Add(message, severity);
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private readonly PaletteLight _lightPalette = new()
@@ -101,4 +141,9 @@
         true => Icons.Material.Outlined.LightMode,
         false => Icons.Material.Outlined.DarkMode,
     };
+
+    public async ValueTask DisposeAsync()
+    {
+        Connectivity.ConnectionStatusChanged -= ConnectionStatusChanged;   
+    }
 }
