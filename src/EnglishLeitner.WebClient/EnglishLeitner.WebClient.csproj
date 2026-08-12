@@ -29,4 +29,9 @@
     <Exec Command="npm run build:ts:$(Configuration.ToLower())" />
   </Target>
 
+  <ItemGroup>
+    <Content Remove="tsconfig.json" />
+    <None Include="tsconfig.json" />
+  </ItemGroup>
+
 </Project>
