@@ -1,91 +1,66 @@
 export class GoogleAuth {
-    constructor(clientId, callback) {
+    constructor(clientId, scopes, wasmReference, existsToken) {
         this.clientId = clientId;
+        this.scopes = scopes;
+        this.wasmReference = wasmReference;
+        this.tokenClient = null;
+        this.accessToken = existsToken;
+        this.expiresIn = 0;
+        this.gisScriptSrc = 'https://accounts.google.com/gsi/client';
+    }
 
-        google.accounts.id.initialize({
-            client_id: clientId,
-            auto_select: true,
-            callback: callback
+    async NotifyUserLoginAsync() {
+        await this.wasmReference.invokeMethodAsync('NotifyUserLoginAsync', this.accessToken, this.expiresIn);
+    }
+
+    async NotifyUserLogoutAsync() {
+        await this.wasmReference.invokeMethodAsync('NotifyUserLogoutAsync');
+    }
+
+    async GooglePopupClosedAsync() {
+        await this.wasmReference.invokeMethodAsync('GooglePopupClosedAsync');
+    }
+
+    loadGSILibraryAsync() {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = this.gisScriptSrc;
+            script.onload = () => resolve(script);
+            script.onerror = () => reject(new Error(`Failed to load script: ${url}`));
+            document.head.appendChild(script);
         });
     }
 
-    renderButton(selector, isDarkMode) {
-        const element = document.querySelector(selector);
-
-        if (!element)
-            return;
-
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // continue with another identity provider.
+    initTokenClient() {
+        this.tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: this.clientId,
+            scope: this.scopes,
+            callback: async (response) => {
+                // docs: https://developers.google.com/identity/oauth2/web/reference/js-reference#TokenResponse
+                this.accessToken = response.access_token;
+                this.expiresIn = response.expires_in;
+                await this.NotifyUserLoginAsync();
+                await this.GooglePopupClosedAsync();
+            },
+            error_callback: async (response) => {
+                // docs: https://developers.google.com/identity/oauth2/web/reference/js-reference#TokenClientConfig
+                await this.GooglePopupClosedAsync();
             }
         });
+    }
 
-        google.accounts.id.renderButton(element, {
-            type: "standard",
-            shape: "pill",
-            theme: isDarkMode ? "outline_dark" : "outline",
-            size: "medium",
-            text: "signin",
-            locale: "en_US"
+    authorize() {
+        this.tokenClient.requestAccessToken({
+            prompt: "",
         });
     }
 
-    refreshToken() {
-        google.accounts.id.prompt((notification) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                console.error("Silent token refresh skipped or not displayed.");
-            }
+    revoke() {
+        google.accounts.oauth2.revoke(this.accessToken, async (response) => {
+            // docs: https://developers.google.com/identity/oauth2/web/reference/js-reference#RevocationResponse
+            this.expiresIn = 0;
+            await this.NotifyUserLogoutAsync();
         });
     }
-}
-
-export function createGoogleAuth(clientId, dotnetHelper) {
-    const callback = (response) => {
-        dotnetHelper.invokeMethodAsync('OnGoogleSignInAsync', response.credential);
-    };
-
-    return new GoogleAuth(clientId, callback);
-}
-
-export class ActivityTracker {
-    constructor(callback, throttleDelay = 30000) {
-        this.callback = callback;
-        this.throttleDelay = throttleDelay;
-        this.lastChecked = 0;
-
-        this.handleActivity = this.handleActivity.bind(this);
-
-        window.addEventListener('mousemove', this.handleActivity);
-        window.addEventListener('keypress', this.handleActivity);
-        window.addEventListener('click', this.handleActivity);
-        window.addEventListener('scroll', this.handleActivity);
-    }
-
-    handleActivity() {
-        const now = Date.now();
-        const passedTime = now - this.lastChecked;
-        
-        if (passedTime < this.throttleDelay)
-            return;
-
-        this.lastChecked = now;
-
-        if (typeof this.callback === 'function') {
-            this.callback();
-        }
-    }
-
-    dispose() {
-        window.removeEventListener('mousemove', this.handleActivity);
-        window.removeEventListener('keypress', this.handleActivity);
-        window.removeEventListener('click', this.handleActivity);
-        window.removeEventListener('scroll', this.handleActivity);
-        this.callback = null;
-    }
-}
-
-export function createActivityTracker(dotnetHelper, throttleDelay = 30000) {
-    const callback = () => dotnetHelper.invokeMethodAsync('OnActivityAsync');
-    return new ActivityTracker(callback, throttleDelay);
 }
