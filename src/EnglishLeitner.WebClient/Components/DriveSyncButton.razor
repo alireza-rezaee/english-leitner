@@ -1,0 +1,111 @@
+@using EnglishLeitner.WebClient.Identity
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.JSInterop
+@using static EnglishLeitner.WebClient.Identity.ApplicationAuthenticationStateProvider
+
+@implements IAsyncDisposable
+
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject ILocalStorageService LocalStorage
+@inject ApplicationAuthenticationStateProvider AuthStateProvider
+
+<AuthorizeView>
+    <Authorized>
+        <MudFab OnClick="@SaveAsync" Color="@SyncColor" Variant="Variant.Text" Size="Size.Medium" StartIcon="@SyncIcon" />
+    </Authorized>
+    <NotAuthorized>
+        <MudFab Variant="Variant.Text" Size="Size.Medium" StartIcon="@Icons.Material.Outlined.CloudOff"
+                Disabled="true" />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string SyncIcon => _syncStatus switch
+    {
+        SyncStatus.InProcess => Icons.Material.Outlined.CloudSync,
+        SyncStatus.Succeded => Icons.Material.Outlined.CloudDone,
+        SyncStatus.Failed => Icons.Material.Outlined.SyncProblem,
+        SyncStatus.Normal or _ => Icons.Material.Outlined.Cloud,
+    };
+
+    private Color SyncColor => _syncStatus switch
+    {
+        SyncStatus.InProcess => Color.Primary,
+        SyncStatus.Succeded => Color.Success,
+        SyncStatus.Failed => Color.Error,
+        SyncStatus.Normal or _ => Color.Default,
+    };
+
+    private SyncStatus _syncStatus = SyncStatus.Normal;
+    private IJSObjectReference? _jsModule;
+    private IJSObjectReference? _jsGoogleDrive;
+    private DotNetObjectReference<DriveSyncButton>? _dotnetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _dotnetRef = DotNetObjectReference.Create(this);
+
+            _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import", "./Components/DriveSyncButton.razor.js");
+
+            _jsGoogleDrive = await _jsModule.InvokeConstructorAsync(
+                "DriveSync", _dotnetRef);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        TokenInfo? tokenInfo = await AuthStateProvider.GetTokenAsync();
+        if (_jsGoogleDrive is not null && !string.IsNullOrWhiteSpace(tokenInfo?.Token))
+            await _jsGoogleDrive.InvokeVoidAsync("saveAsync", tokenInfo.Token);
+    }
+
+    [JSInvokable]
+    public async Task OnJSSyncSuccededAsync()
+    {
+        _syncStatus = SyncStatus.Succeded;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        _syncStatus = SyncStatus.Normal;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task OnJSSyncFailedAsync(string error)
+    {
+        if (!string.IsNullOrWhiteSpace(error))
+            Snackbar.Add($"Sync error: {error}", Severity.Error);
+
+        _syncStatus = SyncStatus.Failed;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(TimeSpan.FromSeconds(5));
+
+        _syncStatus = SyncStatus.Normal;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_jsGoogleDrive is not null)
+            await _jsGoogleDrive.DisposeAsync();
+
+        if (_jsModule is not null)
+            await _jsModule.DisposeAsync();
+
+        _dotnetRef?.Dispose();
+    }
+
+    private enum SyncStatus
+    {
+        Normal,
+        InProcess,
+        Succeded,
+        Failed,
+    }
+}
