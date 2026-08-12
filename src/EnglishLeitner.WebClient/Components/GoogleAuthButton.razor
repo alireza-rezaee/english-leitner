@@ -96,7 +96,7 @@
             _dotnetRef = DotNetObjectReference.Create(this);
 
             _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
-                "import", "./Components/GoogleAuthButton.razor.js");
+                "import", "./scripts/js/app.bundle.js");
 
             string scopes = string.Join(" ", _scopes);
             string? existsToken = (await AuthStateProvider.GetTokenAsync())?.Token;
@@ -153,15 +153,15 @@
     }
 
     [JSInvokable]
-    public async Task NotifyUserLoginAsync(string token, int expiresIn)
+    public async Task OnJSUserLoginAsync(string token, int expiresIn)
         => await AuthStateProvider.NotifyUserLoginAsync(token, expiresIn);
 
     [JSInvokable]
-    public async Task NotifyUserLogoutAsync()
+    public async Task OnJSUserLogoutAsync()
         => await AuthStateProvider.NotifyUserLogoutAsync();
 
     [JSInvokable]
-    public async Task GooglePopupClosedAsync()
+    public async Task OnJSGooglePopupClosedAsync()
     {
         _isSigninPopupOpen = false;
         await InvokeAsync(StateHasChanged);

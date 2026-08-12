@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    "strict": true,
+    "skipLibCheck": true,
+
+    "noEmit": true,
+
+    "sourceMap": true,
+    "declaration": false,
+
+    "types": [
+      "node",
+      "google.accounts"
+    ],
+
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true
+  },
+
+  "include": [
+    "wwwroot/scripts/ts/**/*.ts"
+  ],
+
+  "exclude": [
+    "node_modules",
+    "wwwroot/scripts/js",
+    "bin",
+    "obj"
+  ]
+}

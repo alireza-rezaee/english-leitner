@@ -1,0 +1,22 @@
+{
+  "name": "englishleitner.webclient",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "check:ts": "tsc --noEmit",
+    "build:ts:debug": "npm run check:ts && esbuild wwwroot/scripts/ts/index.ts --bundle --sourcemap --target=esnext --format=esm --outfile=wwwroot/scripts/js/app.bundle.js",
+    "build:ts:release": "npm run check:ts && esbuild wwwroot/scripts/ts/index.ts --bundle --minify --target=esnext --format=esm --outfile=wwwroot/scripts/js/app.bundle.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@microsoft/dotnet-js-interop": "^10.0.11",
+    "@types/google.accounts": "^0.0.18",
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "googleapis": "^174.0.1",
+    "typescript": "^7.0.2"
+  }
+}

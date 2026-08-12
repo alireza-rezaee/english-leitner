@@ -49,7 +49,7 @@
             _dotnetRef = DotNetObjectReference.Create(this);
 
             _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
-                "import", "./Components/DriveSyncButton.razor.js");
+                "import", "./scripts/js/app.bundle.js");
 
             _jsGoogleDrive = await _jsModule.InvokeConstructorAsync(
                 "DriveSync", _dotnetRef);

@@ -13,38 +13,69 @@ jobs:
       DOTNET_NOLOGO: true
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
       SDK_VERSION: 10.0.x
+      PROJECT_PATH: "./src/EnglishLeitner.WebClient"
+
     steps:
-      - uses: actions/cache@v6
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
         with:
           path: ${{ env.NUGET_PACKAGES }}
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln', '**/Directory.Packages.props') }}
           restore-keys: |
-            ${{ runner.os }}-nuget-${{ env.SDK_VERSION }}
+            ${{ runner.os }}-nuget-
 
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.SDK_VERSION }}
+          dotnet-quality: 'ga'
+          cache: true
+          cache-dependency-path: |
+            **/*.slnx
+            **/Directory.Packages.props
+            ${{ env.PROJECT_PATH }}/**/*.csproj
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: ${{ env.PROJECT_PATH }}/package-lock.json
+
+      - name: Cache npm packages
+        uses: actions/cache@v6
+        with:
+          path: ${{ github.workspace }}/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Install npm dependencies
+        run: npm i --save
+        working-directory: ${{ env.PROJECT_PATH }}
 
       - name: Publish .NET Project
         run: dotnet publish EnglishLeitner.WebClient.csproj -c Release -o release --nologo
-        working-directory: ./src/EnglishLeitner.WebClient
+        working-directory: ${{ env.PROJECT_PATH }}
 
       - name: Change base-tag in index.html from / to english-leitner
         run: sed -i 's/<base href="\/" \/>/<base href="\/english-leitner\/" \/>/g' release/wwwroot/index.html
-        working-directory: ./src/EnglishLeitner.WebClient
+        working-directory: ${{ env.PROJECT_PATH }}
 
-      - name: copy index.html to 404.html
+      - name: Copy index.html to 404.html
         run: cp release/wwwroot/index.html release/wwwroot/404.html
-        working-directory: ./src/EnglishLeitner.WebClient
+        working-directory: ${{ env.PROJECT_PATH }}
 
       - name: Add .nojekyll file
         run: touch release/wwwroot/.nojekyll
-        working-directory: ./src/EnglishLeitner.WebClient
+        working-directory: ${{ env.PROJECT_PATH }}
 
       - name: Commit wwwroot to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: ./src/EnglishLeitner.WebClient/release/wwwroot
+          folder: ${{ env.PROJECT_PATH }}/release/wwwroot
