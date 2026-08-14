@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace EnglishLeitner.OxfordWebScraper.DTOs;
+namespace EnglishLeitner.EFDesign.Models;
 
 public class MeaningItem
 {
@@ -10,7 +10,7 @@ public class MeaningItem
 
     public int? Number { get; set; }
 
-    public int? Cefr { get; set; }
+    public Cefr? Cefr { get; set; }
 
     public string? Grammar { get; set; }
 

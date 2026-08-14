@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace EnglishLeitner.OxfordWebScraper.DTOs;
+namespace EnglishLeitner.EFDesign.Models;
 
 public class Word
 {
@@ -13,7 +13,7 @@ public class Word
 
     public string? Grammar { get; set; }
 
-    public int? Cefr { get; set; }
+    public Cefr? Cefr { get; set; }
 
     public List<Pronunciation>? Pronunciations { get; set; }
 

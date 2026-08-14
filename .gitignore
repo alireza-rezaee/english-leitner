@@ -428,3 +428,9 @@ FodyWeavers.xsd
 *.msm
 *.msp
 **/scripts/js/**/*
+
+# SQLite database
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

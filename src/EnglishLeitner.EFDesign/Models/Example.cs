@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace EnglishLeitner.OxfordWebScraper.DTOs;
+namespace EnglishLeitner.EFDesign.Models;
 
 public class Example
 {

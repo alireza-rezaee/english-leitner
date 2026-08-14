@@ -1,20 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace EnglishLeitner.OxfordWebScraper.DTOs;
+namespace EnglishLeitner.EFDesign.Models;
 
-public class Pronunciation
+public class MeaningGroup
 {
     [Key]
     public int Id { get; set; }
-
-    public bool IsUK { get; set; }
-
-    public string? Phonetics { get; set; }
-
-    public string? Mp3Url { get; set; }
-
-    public string? OggUrl { get; set; }
+    
+    public string? Head { get; set; }
+    
+    public List<MeaningItem>? Meanings { get; set; }
 
     [ForeignKey(nameof(WordId))]
     public Word Word { get; set; } = null!;

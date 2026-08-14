@@ -1,4 +1,4 @@
-using EnglishLeitner.OxfordWebScraper.DTOs;
+using EnglishLeitner.EFDesign.Models;
 using HtmlAgilityPack;
 
 namespace EnglishLeitner.OxfordWebScraper;
@@ -68,11 +68,12 @@ public class Scraper
         word.Pronunciations = [];
         HtmlNode? phonetics = topContainer?.SelectSingleNode(@".//*[contains(concat(' ', normalize-space(@class), ' '), 'phonetics')]");
 
-        foreach (string lang in new string[] { "phons_br", "phons_n_am" })
+        foreach (Culture culture in new Culture[] { Culture.EnUK, Culture.EnUS })
         {
-            HtmlNode? langElem = phonetics?.SelectSingleNode($@".//*[contains(concat(' ', normalize-space(@class), ' '), '{lang}')]");
+            string className = culture == Culture.EnUK ? "phons_br" : "phons_n_am";
+            HtmlNode? cultureElem = phonetics?.SelectSingleNode($@".//*[contains(concat(' ', normalize-space(@class), ' '), '{className}')]");
 
-            HtmlNodeCollection? audios = langElem?.SelectNodes(@".//*[@data-src-mp3 or @data-src-ogg]");
+            HtmlNodeCollection? audios = cultureElem?.SelectNodes(@".//*[@data-src-mp3 or @data-src-ogg]");
             if (audios?.Count > 0)
             {
                 foreach (var audio in audios)
@@ -85,7 +86,7 @@ public class Scraper
 
                     word.Pronunciations.Add(new Pronunciation()
                     {
-                        IsUK = lang == "phons_br",
+                        Culture = culture,
                         Phonetics = phonValue?.Trim(),
                         Mp3Url = mp3Url?.Trim(),
                         OggUrl = oggUrl?.Trim(),
@@ -102,12 +103,12 @@ public class Scraper
 
         word.Cefr = headCefrValue?.Trim().ToUpper() switch
         {
-            "A1" => (int)CefrLevel.A1,
-            "A2" => (int)CefrLevel.A2,
-            "B1" => (int)CefrLevel.B1,
-            "B2" => (int)CefrLevel.B1,
-            "C1" => (int)CefrLevel.C1,
-            "C2" => (int)CefrLevel.C2,
+            "A1" => Cefr.A1,
+            "A2" => Cefr.A2,
+            "B1" => Cefr.B1,
+            "B2" => Cefr.B1,
+            "C1" => Cefr.C1,
+            "C2" => Cefr.C2,
             _ => null
         };
 
@@ -150,12 +151,12 @@ public class Scraper
                         cefrLevelValue ??= sense.GetAttributeValue<string?>("fkcefr", null);
                         meaning.Cefr = cefrLevelValue?.Trim().ToUpper() switch
                         {
-                            "A1" => (int)CefrLevel.A1,
-                            "A2" => (int)CefrLevel.A2,
-                            "B1" => (int)CefrLevel.B1,
-                            "B2" => (int)CefrLevel.B1,
-                            "C1" => (int)CefrLevel.C1,
-                            "C2" => (int)CefrLevel.C2,
+                            "A1" => Cefr.A1,
+                            "A2" => Cefr.A2,
+                            "B1" => Cefr.B1,
+                            "B2" => Cefr.B1,
+                            "C1" => Cefr.C1,
+                            "C2" => Cefr.C2,
                             _ => null
                         };
 

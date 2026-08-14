@@ -1,12 +1,14 @@
 ﻿using System.Text.Json;
+using EnglishLeitner.EFDesign.Data;
+using EnglishLeitner.EFDesign.Models;
 using EnglishLeitner.OxfordWebScraper;
-using EnglishLeitner.OxfordWebScraper.Data;
-using EnglishLeitner.OxfordWebScraper.DTOs;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 string dataDir = "bin/data";
 Directory.CreateDirectory(dataDir);
-string resultsPath = $"{dataDir}/results.json";
-string jsonResult = $"{dataDir}/db.json";
+string resultsPath = $"{dataDir}/downloaded-webpages.json";
+string jsonResult = $"{dataDir}/dataset.json";
 
 // Read Previous Results
 List<Result> pageResults;
@@ -72,18 +74,27 @@ foreach (Result pageResult in pageResults)
 if (words?.Count > 0)
 {
     // export db as JSON
-    ColoredConsoleWriteLine($"Saving db as JSON in {jsonResult}", ConsoleColor.Blue);
+    ColoredConsoleWriteLine($"Saving db as JSON (in: {jsonResult})", ConsoleColor.Blue);
     using FileStream fs = File.OpenWrite(jsonResult);
     await JsonSerializer.SerializeAsync(fs, words);
 
+
     // export as SQLite database
-    if (File.Exists(ApplicationDbContent.DbPath))
-        File.Delete(ApplicationDbContent.DbPath);
-    ColoredConsoleWriteLine($"Saving as sqlite db in {ApplicationDbContent.DbPath}", ConsoleColor.Blue);
-    using ApplicationDbContent db = new();
-    db.Database.EnsureCreated();
-    await db.Words.AddRangeAsync(words);
-    await db.SaveChangesAsync();
+    const string DataSource = "Data Source=app.db";
+    ColoredConsoleWriteLine($"Saving into sqlite db (in: {DataSource})", ConsoleColor.Blue);
+
+    ServiceCollection services = new();
+    services.AddDbContextFactory<ApplicationDbContext>(options =>
+    {
+        options.UseSqlite(DataSource);
+    });
+
+    ServiceProvider provider = services.BuildServiceProvider();
+    ApplicationDbContext dbContext = provider.GetRequiredService<ApplicationDbContext>();
+
+    dbContext.Database.EnsureCreated();
+    await dbContext.Words.AddRangeAsync(words);
+    await dbContext.SaveChangesAsync();
 }
 
 static void ColoredConsoleWriteLine(string value, ConsoleColor? color = null, bool isError = false)

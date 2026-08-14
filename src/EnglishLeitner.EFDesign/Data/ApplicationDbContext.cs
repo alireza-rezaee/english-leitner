@@ -1,23 +1,16 @@
-using System.Text.Json;
-using EnglishLeitner.OxfordWebScraper.DTOs;
+using EnglishLeitner.EFDesign.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace EnglishLeitner.OxfordWebScraper.Data;
+namespace EnglishLeitner.EFDesign.Data;
 
-public class ApplicationDbContent : DbContext
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
-    public const string DbPath = "bin/data/app.db";
-
     public DbSet<Word> Words { get; set; }
     public DbSet<Pronunciation> Pronunciations { get; set; }
     public DbSet<MeaningGroup> MeaningGroups { get; set; }
     public DbSet<MeaningItem> MeaningItems { get; set; }
     public DbSet<Example> Examples { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseSqlite($"Data Source={DbPath}");
-    }
+    public DbSet<Review> Reviews { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
