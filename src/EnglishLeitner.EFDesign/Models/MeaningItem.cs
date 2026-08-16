@@ -20,11 +20,11 @@ public class MeaningItem
 
     public string? Usage { get; set; }
 
-    public List<string> Refs { get; set; } = [];
+    public ICollection<string> Refs { get; set; } = [];
 
-    public List<Example>? Examples { get; set; }
+    public ICollection<Example>? Examples { get; set; }
 
-    public List<string> Topics { get; set; } = [];
+    public ICollection<string> Topics { get; set; } = [];
 
     [ForeignKey(nameof(MeaningGroupId))]
     public MeaningGroup MeaningGroup { get; set; } = null!;

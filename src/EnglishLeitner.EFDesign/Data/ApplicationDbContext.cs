@@ -19,13 +19,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Refs)
                 .HasConversion(
                     v => string.Join('\n', v),
-                    v => v.Split("\n").ToList() ?? new List<string>()
+                    v => v.Split("\n") ?? Array.Empty<string>()
                 );
 
             entity.Property(e => e.Topics)
                 .HasConversion(
                     v => string.Join('\n', v),
-                    v => v.Split("\n").ToList() ?? new List<string>()
+                    v => v.Split("\n") ?? Array.Empty<string>()
                 );
         });
     }

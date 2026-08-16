@@ -15,9 +15,11 @@ public class Word
 
     public Cefr? Cefr { get; set; }
 
-    public List<Pronunciation>? Pronunciations { get; set; }
+    public ICollection<Pronunciation>? Pronunciations { get; set; }
 
     public string? WebPage { get; set; }
     
-    public List<MeaningGroup>? Meanings { get; set; }
+    public ICollection<MeaningGroup>? Meanings { get; set; }
+
+    public ICollection<Review>? Reviews { get; set; }
 }

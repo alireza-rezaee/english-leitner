@@ -10,7 +10,7 @@ public class MeaningGroup
     
     public string? Head { get; set; }
     
-    public List<MeaningItem>? Meanings { get; set; }
+    public ICollection<MeaningItem>? Meanings { get; set; }
 
     [ForeignKey(nameof(WordId))]
     public Word Word { get; set; } = null!;

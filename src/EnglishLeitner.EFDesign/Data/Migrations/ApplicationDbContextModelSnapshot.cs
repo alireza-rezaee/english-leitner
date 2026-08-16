@@ -36,7 +36,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
 
                     b.HasIndex("MeaningItemId");
 
-                    b.ToTable("Examples");
+                    b.ToTable("Examples", (string)null);
                 });
 
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.MeaningGroup", b =>
@@ -55,7 +55,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("MeaningGroups");
+                    b.ToTable("MeaningGroups", (string)null);
                 });
 
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.MeaningItem", b =>
@@ -97,7 +97,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
 
                     b.HasIndex("MeaningGroupId");
 
-                    b.ToTable("MeaningItems");
+                    b.ToTable("MeaningItems", (string)null);
                 });
 
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.Pronunciation", b =>
@@ -125,7 +125,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("Pronunciations");
+                    b.ToTable("Pronunciations", (string)null);
                 });
 
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.Review", b =>
@@ -147,7 +147,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.Word", b =>
@@ -173,7 +173,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Words");
+                    b.ToTable("Words", (string)null);
                 });
 
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.Example", b =>
