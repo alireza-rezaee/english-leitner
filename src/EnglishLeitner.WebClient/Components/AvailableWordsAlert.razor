@@ -1,0 +1,52 @@
+@using EnglishLeitner.EFDesign.Data
+@using EnglishLeitner.WebClient.Pages
+@using Microsoft.EntityFrameworkCore
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager Nav
+
+@if (_isLoading)
+{
+    <MudText>Loading...</MudText>
+}
+else if (@_availableCards > 0)
+{
+    <div class="d-flex justify-center">
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Spellcheck" Class="my-5"
+                  Style="width: fit-content;">
+            @_availableCards cards are ready for review. Let’s get started!
+            <MudButton OnClick="@NavigateToRandomWord" Variant="Variant.Filled" Size="Size.Small" Color="Color.Info"
+                       Class="mx-4">Start Now!</MudButton>
+        </MudAlert>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+
+    private int _availableCards = default;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isLoading = true;
+
+            await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+            
+            DateTime utcNow = DateTime.UtcNow;
+            _availableCards = await dbContext.Words
+                .IgnoreAutoIncludes()
+                .CountAsync(x => x.NextTryUTC == null || x.NextTryUTC <= DateTime.UtcNow);
+
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void NavigateToRandomWord()
+    {
+        string url = RandomWord.GetRoute();
+        Nav.NavigateTo(url, replace: false);
+    }
+}

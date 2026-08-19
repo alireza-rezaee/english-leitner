@@ -1,0 +1,78 @@
+@using EnglishLeitner.WebClient.DTOs
+
+
+<div class="review-calendar" style="max-width:750px;">
+    @if (!string.IsNullOrWhiteSpace(Title))
+    {
+        <MudText Typo="Typo.caption">
+            @Title
+        </MudText>
+    }
+    <MudSimpleTable Style="overflow-x: auto;" Bordered="false" Outlined="false">
+        <tbody>
+            @foreach (IGrouping<DayOfWeek, DateOnly> group in GroupedDateRange)
+            {
+                <tr>
+                    @foreach (DateOnly date in group)
+                    {
+                        bool isInDateRange = date >= DateRange.Start && date <= DateRange.End;
+                        if (isInDateRange)
+                        {
+                            ReviewCalendarItem? item = Items?.FirstOrDefault(x => x.Date == date);
+
+                            string tooltip, cssClass;
+                            if (item is not null)
+                                (tooltip, cssClass) = (item.Tooltip, item.CssClass);
+                            else
+                            {
+                                tooltip = $"No Review on {date:M}";
+                                cssClass = "mud-theme-dark";
+                            }
+
+                            <td>
+                                <MudTooltip Text="@tooltip">
+                                    <div class="@cssClass rounded-sm review-state"></div>
+                                </MudTooltip>
+                            </td>
+                        }
+                        else
+                        {
+                            <td class="border-none"></td>
+                        }
+                    }
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+</div>
+
+
+@code {
+    private bool _isLoading = true;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public required DateOnlyRange DateRange { get; set; }
+
+    [Parameter]
+    public ICollection<ReviewCalendarItem>? Items { get; set; }
+
+    private IEnumerable<IGrouping<DayOfWeek, DateOnly>> GroupedDateRange
+    {
+        get
+        {
+            int startDayOfWeek = (int)DateRange.Start.DayOfWeek;
+            DateOnly start = DateRange.Start.AddDays(-startDayOfWeek);
+
+            int endDayOfWeek = (int)DateRange.End.DayOfWeek;
+            DateOnly end = DateRange.End.AddDays(6 - startDayOfWeek);
+
+            int daysCount = end.DayNumber - start.DayNumber + 1;
+            return Enumerable.Range(0, daysCount)
+                .Select(offset => start.AddDays(offset))
+                .GroupBy(date => date.DayOfWeek);
+        }
+    }
+}

@@ -22,7 +22,6 @@ public class ApplicationAuthenticationStateProvider : AuthenticationStateProvide
 
     private readonly ILocalStorageService _localStorage;
     private readonly IHttpClientFactory _httpClientFactory;
-    private DateTime _expireTime = DateTime.MinValue;
     private readonly System.Timers.Timer _timer = new() { AutoReset = false };
 
     public ClaimsPrincipal User { get; private set; } = _anonymousUser;

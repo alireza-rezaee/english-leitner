@@ -11,6 +11,19 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<int>(
+                name: "LeitnerLevel",
+                table: "Words",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "NextTryUTC",
+                table: "Words",
+                type: "TEXT",
+                nullable: true);
+
             migrationBuilder.CreateTable(
                 name: "Reviews",
                 columns: table => new
@@ -19,7 +32,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
                         .Annotation("Sqlite:Autoincrement", true),
                     WordId = table.Column<int>(type: "INTEGER", nullable: false),
                     IsRemembered = table.Column<bool>(type: "INTEGER", nullable: false),
-                    Time = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    Time = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -43,6 +56,14 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
         {
             migrationBuilder.DropTable(
                 name: "Reviews");
+
+            migrationBuilder.DropColumn(
+                name: "LeitnerLevel",
+                table: "Words");
+
+            migrationBuilder.DropColumn(
+                name: "NextTryUTC",
+                table: "Words");
         }
     }
 }

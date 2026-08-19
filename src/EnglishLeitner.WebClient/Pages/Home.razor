@@ -1,14 +1,164 @@
 @page "/"
+@page "/words"
+
+@using DTOs
+@using EnglishLeitner.EFDesign.Data
+@using EnglishLeitner.WebClient.Components
+@using Microsoft.EntityFrameworkCore
+@using SqliteWasmBlazor
+
+@inject ISqliteWasmDatabaseService DbService
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject IHttpClientFactory HttpClientFactory
 
 <PageTitle>Home</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Hello, world!</MudText>
-<MudText Class="mb-8">Welcome to your new app, powered by MudBlazor and the .NET 10 Template!</MudText>
+@if (_isLoading)
+{
+    <MudText>Loading...</MudText>
+}
+else if (_isDbNotImported)
+{
+    <MudButton OnClick="OnDownloadDbClick">Download Database</MudButton>
+}
+else
+{
+
+    <MudText Typo="Typo.h1" Style="text-align: center;">
+        English Leitner
+    </MudText>
+
+    <AvailableWordsAlert />
+
+    <div class="d-flex justify-center flex-grow-1 gap-4 my-4">
+        <MudPaper Width="750px" Class="pa-3" Style="max-width: 100%;">
+            <ReviewCalendar Items="@ReviewItems" DateRange="@_dateRange" Title="@_reviewCalendarTitle" />
+        </MudPaper>
+    </div>
+
+    <WordsTable DateRange="_dateRange" />
+}
 
 
-<MudAlert Severity="Severity.Normal" ContentAlignment="HorizontalAlignment.Start">
-    You can find documentation and examples on our website here:
-    <MudLink Href="https://mudblazor.com" Target="_blank" Typo="Typo.body2" Color="Color.Primary">
-        <b>www.mudblazor.com</b>
-    </MudLink>
-</MudAlert>
+@code {
+    const string DbName = "app.db";
+
+    public Dictionary<DateOnly, int>? Model { get; set; }
+
+    private bool _isLoading = true;
+
+    private bool _isDbNotImported = default;
+
+    private string? _reviewCalendarTitle = null;
+
+    private DateOnlyRange _dateRange = default!;
+
+    private ICollection<ReviewCalendarItem>? ReviewItems
+    {
+        get
+        {
+            return Model?
+                .Select(x => (Date: x.Key, ReviewsCount: x.Value))
+                .Select(x => new ReviewCalendarItem()
+                {
+                    Date = x.Date,
+                    CssClass = "mud-theme-info" + x.ReviewsCount switch
+                    {
+                        > 75 => string.Empty,
+                        > 50 => " opacity-75",
+                        > 25 => " opacity-50",
+                        > 0 => " opacity-25",
+                        _ => string.Empty
+                    },
+                    Tooltip = $"{x.ReviewsCount} {(x.ReviewsCount > 1 ? "Reviews" : "Review")} on {x.Date:M}",
+                }).ToList();
+        }
+    }
+
+    public static string GetRoute()
+        => $"/";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        CancellationToken cancellationToken = default;
+
+        if (firstRender)
+        {
+            _isLoading = true;
+            await InvokeAsync(StateHasChanged);
+
+            _dateRange = new DateOnlyRange(
+                Start: DateOnly.FromDateTime(DateTime.Now.Date.AddYears(-1).AddDays(1)),
+                End: DateOnly.FromDateTime(DateTime.Now.Date));
+
+            try
+            {
+                _isDbNotImported = !await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
+
+                if (!_isDbNotImported)
+                {
+                    DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
+                    DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
+
+                    await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+                    List<DateTime> reviewTimes = await dbContext.Reviews
+                        .Where(x => x.Time >= startTime && x.Time < endTime)
+                        .Select(x => x.Time)
+                        .ToListAsync();
+
+                    Model = reviewTimes
+                        .GroupBy(utcTime =>
+                            DateOnly.FromDateTime(
+                                DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime()))
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    uint reviewCounts = (uint)(Model?.Sum(x => x.Value) ?? 0);
+                    string reviewString = reviewCounts switch
+                    {
+                        0 => "No Review",
+                        1 => "1 Review",
+                        > 1 => $"{reviewCounts} Reviews",
+                    };
+                    _reviewCalendarTitle = $"{reviewString} in the last year";
+                }
+
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task OnDownloadDbClick()
+        => DownloadDatabaseAsync();
+
+    private async Task DownloadDatabaseAsync(bool force = false, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            bool isExists = await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
+            if (isExists && !force)
+                return;
+
+            using HttpClient httpClient = HttpClientFactory.CreateClient("Application");
+            byte[] dbBytes = await httpClient.GetByteArrayAsync(DbName, cancellationToken);
+
+            if (isExists)
+                await DbService.DeleteDatabaseAsync(DbName, cancellationToken);
+
+            await DbService.ImportDatabaseAsync(DbName, dbBytes, cancellationToken);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    private Task ResetDatabaseAsync(CancellationToken cancellationToken = default)
+        => DownloadDatabaseAsync(true, cancellationToken);
+}

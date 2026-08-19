@@ -22,7 +22,7 @@ public class Scraper
 
         return linkNodes?
             .Select(a => a.GetAttributeValue("href", string.Empty))
-            .Where(href => !string.IsNullOrWhiteSpace(href))
+            .Where(href => !string.IsNullOrWhiteSpace(href) && href.Split("/").Count(x => !string.IsNullOrWhiteSpace(x)) == 3)
             .Distinct()
             .ToArray()
             ?? [];
@@ -43,17 +43,19 @@ public class Scraper
     {
         Word word = new()
         {
+            Slug = url.Split("/").ElementAt(3),
             WebPage = new Uri(new Uri(BaseUrl), relativeUri: url).AbsoluteUri
         };
 
         HtmlDocument doc = new();
         doc.Load(htmlStream);
 
-        HtmlNode? content = doc.DocumentNode.SelectSingleNode(@"//*[@id=""entryContent""]");
+        HtmlNode? content = doc.DocumentNode.SelectSingleNode(@"//*[@id='entryContent']");
 
         HtmlNode? topContainer = content?.SelectSingleNode(@".//*[contains(concat(' ', normalize-space(@class), ' '), 'top-container')]");
 
-        HtmlNode? headWord = topContainer?.SelectSingleNode(@".//h1");
+        HtmlNode? headWord = topContainer?.SelectSingleNode(@".//h1")
+            .ChildNodes.First(n => n.NodeType == HtmlNodeType.Text);
         string? headWordValue = headWord?.InnerText;
         word.HeadWord = headWordValue?.Trim();
 

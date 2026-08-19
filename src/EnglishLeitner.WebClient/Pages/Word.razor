@@ -1,0 +1,452 @@
+@page "/words/{Slug}"
+
+@using DTOs
+@using EFDesign.Models;
+@using EnglishLeitner.EFDesign.Data
+@using EnglishLeitner.WebClient.Components
+@using Microsoft.EntityFrameworkCore
+@using WordModel = EFDesign.Models.Word
+
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Nav
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+
+@if (_isLoading)
+{
+    <MudText>Loading...</MudText>
+}
+else if (Model is null)
+{
+    <NotFound />
+}
+else
+{
+    <PageTitle>@Model.HeadWord</PageTitle>
+
+    <div class="mt-2 d-flex justify-center">
+        <MudPaper Width="750px" Style="max-width: 100%;">
+            <MudCard Outlined="true" Style="min-height: calc(100vh - 90px);">
+                <MudCardContent>
+                    <div class="d-flex justify-space-between flex-grow-1 gap-4">
+                        <MudButton OnClick="@GoBackHome" Variant="Variant.Text"
+                                   StartIcon="@Icons.Material.Filled.ArrowBackIosNew">
+                            Home
+                        </MudButton>
+                        <MudButton OnClick="@GoBackHome" Variant="Variant.Text" EndIcon="@Icons.Material.Outlined.Outbox">
+                            @_todayReviewsCount
+                        </MudButton>
+                    </div>
+                    <div class="d-flex justify-space-between flex-grow-1 gap-4 mb-4">
+                        <div class="d-flex flex-grow-1">
+                            <div>
+                                <MudText Typo="Typo.h3" Style="text-transform: capitalize;">
+                                    @Model.HeadWord
+                                </MudText>
+                                <MudText Typo="Typo.body2">
+                                    @foreach (string subtitle in _subtitleParts)
+                                    {
+                                        <MudText Typo="Typo.caption">@subtitle</MudText>
+
+                                        if (subtitle != _subtitleParts.Last())
+                                        {
+                                            <MudText Typo="Typo.caption" Class="mx-2">•</MudText>
+                                        }
+                                    }
+                                    @if (_subtitleParts.Length > 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mx-2">•</MudText>
+                                    }
+                                    <MudLink Typo="Typo.caption" Href="@Model.WebPage" Target="_blank"
+                                             EndIcon="@Icons.Material.Filled.OpenInNew">Oxford</MudLink>
+                                </MudText>
+                            </div>
+                        </div>
+                        <div class="d-flex align-content-center flex-wrap gap-0">
+                            @if (Model.Pronunciations?.Count > 0)
+                            {
+                                IEnumerable<Pronunciation> pronunciations = Model.Pronunciations
+                                    .Where(x => x.Mp3Url is not null)
+                                    .OrderBy(x => x.Culture == Culture.EnUK);
+
+                                @foreach (Pronunciation pronunciation in pronunciations)
+                                {
+                                    string culture = pronunciation.Culture == Culture.EnUK ? "UK" : "US";
+                                    string tooltip = $"{culture}: {pronunciation.Phonetics}";
+                                    Color color = pronunciation.Culture == Culture.EnUK ? Color.Info : Color.Error;
+
+                                    <MudTooltip Text="@tooltip">
+                                        <MudBadge Content="culture" Color="color" Overlap="true" Bordered="true"
+                                                  Class="mt-3 me-4 mb-2 ms-1">
+                                            <MudFab Color="color" StartIcon="@Icons.Material.Outlined.RecordVoiceOver"
+                                                    Size="Size.Small"
+                                                    onclick="@(async () => await PlayAudioAsync(pronunciation.Mp3Url!))" />
+                                        </MudBadge>
+                                    </MudTooltip>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <MudDivider />
+
+                    <ReviewCalendar Items="@ReviewItems" DateRange="@_dateRange" Title="@_reviewCalendarTitle" />
+
+                    <MudDivider />
+
+                    <MudCollapse Expanded="@_isAnswerVisible">
+                        <MudPaper Class="border px-2 py-2 mt-4">
+                            <MudText Typo="Typo.body2">
+
+                                <MudExpansionPanels MultiExpansion="true" Elevation="0">
+                                    @foreach (var group in Model.Meanings)
+                                    {
+                                        string? head = group.Head ?? Model.HeadWord!;
+
+                                        <MudExpansionPanel Text="@head" Icon="@Icons.Material.Filled.MenuBook"
+                                                           IsInitiallyExpanded="true">
+                                            <MudStack Spacing="2">
+
+                                                @foreach (var meaning in group.Meanings)
+                                                {
+                                                    <MudCard Outlined="true" Class="pa-3">
+                                                        <MudStack Spacing="2">
+
+                                                            <div class="d-flex align-center flex-wrap gap-2">
+                                                                @if (meaning.Number is not null)
+                                                                {
+                                                                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled"
+                                                                             Size="Size.Small">
+                                                                        @meaning.Number
+                                                                    </MudChip>
+                                                                }
+
+                                                                @if (meaning.Cefr is not null)
+                                                                {
+                                                                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled"
+                                                                             Size="Size.Small">
+                                                                        @meaning.Cefr?.ToString().ToUpper()
+                                                                    </MudChip>
+                                                                }
+
+                                                                @if (!string.IsNullOrWhiteSpace(meaning.Grammar))
+                                                                {
+                                                                    <MudChip T="string" Color="Color.Secondary"
+                                                                             Variant="Variant.Outlined" Size="Size.Small">
+                                                                        @meaning.Grammar
+                                                                    </MudChip>
+                                                                }
+
+                                                                @if (!string.IsNullOrWhiteSpace(meaning.Usage))
+                                                                {
+                                                                    <MudChip T="string" Color="Color.Info" Variant="Variant.Text"
+                                                                             Size="Size.Small" Icon="@Icons.Material.Filled.Info">
+                                                                        @meaning.Usage
+                                                                    </MudChip>
+                                                                }
+                                                            </div>
+
+                                                            @if (!string.IsNullOrWhiteSpace(meaning.Definition))
+                                                            {
+                                                                <MudText Typo="Typo.body1" Class="font-weight-medium">
+                                                                    @meaning.Definition
+                                                                </MudText>
+                                                            }
+
+                                                            @if (!string.IsNullOrWhiteSpace(meaning.Variants))
+                                                            {
+                                                                <MudText Typo="Typo.body2">
+                                                                    <strong>Variants:</strong> @meaning.Variants
+                                                                </MudText>
+                                                            }
+
+                                                            @if (meaning.Examples?.Count > 0)
+                                                            {
+                                                                <MudPaper Class="pa-2" Elevation="0"
+                                                                          Style="background-color: var(--mud-palette-background-grey);">
+                                                                    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-1">
+                                                                        Examples:
+                                                                    </MudText>
+
+                                                                    @if (meaning.Examples.Count > 0)
+                                                                    {
+                                                                        <ul class="ps-4">
+                                                                            @foreach (Example example in meaning.Examples)
+                                                                            {
+                                                                                <li>
+                                                                                    @if (!string.IsNullOrWhiteSpace(example.Description))
+                                                                                    {
+                                                                                        <strong>@example.Description</strong>
+                                                                                    }
+                                                                                    @if (!string.IsNullOrWhiteSpace(example.Text))
+                                                                                    {
+                                                                                        <text>@example.Text</text>
+                                                                                    }
+                                                                                </li>
+                                                                            }
+                                                                        </ul>
+                                                                    }
+                                                                </MudPaper>
+                                                            }
+
+                                                            @if (meaning.Refs?.Count > 0)
+                                                            {
+                                                                <MudStack Spacing="1">
+                                                                    <MudText Typo="Typo.caption">References:</MudText>
+
+                                                                    <MudChipSet T="string">
+                                                                        @foreach (var reference in meaning.Refs)
+                                                                        {
+                                                                            if (!string.IsNullOrWhiteSpace(reference))
+                                                                            {
+                                                                                <MudChip T="string" Size="Size.Small" Color="Color.Default"
+                                                                                         Variant="Variant.Text" Icon="@Icons.Material.Filled.Link">
+                                                                                    @reference
+                                                                                </MudChip>
+                                                                            }
+                                                                        }
+                                                                    </MudChipSet>
+                                                                </MudStack>
+                                                            }
+
+                                                            @if (meaning.Topics?.Count > 0)
+                                                            {
+                                                                <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                                                                    <MudText Typo="Typo.caption" Class="mr-2">Topics:</MudText>
+                                                                    <MudChipSet T="string">
+                                                                        @foreach (string topic in meaning.Topics)
+                                                                        {
+                                                                            if (!string.IsNullOrWhiteSpace(topic))
+                                                                            {
+                                                                                <MudChip T="string" Size="Size.Small" Color="Color.Info"
+                                                                                         Variant="Variant.Outlined"
+                                                                                         Icon="@Icons.Material.Filled.LocalOffer">
+                                                                                    @topic
+                                                                                </MudChip>
+                                                                            }
+                                                                        }
+                                                                    </MudChipSet>
+                                                                </MudStack>
+                                                            }
+
+                                                        </MudStack>
+                                                    </MudCard>
+                                                }
+
+                                            </MudStack>
+                                        </MudExpansionPanel>
+                                    }
+                                </MudExpansionPanels>
+
+
+                            </MudText>
+                        </MudPaper>
+                    </MudCollapse>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudStack Style="width: 100%;">
+                        @if (IsAnswerDisabled && Model.NextTryUTC is DateTime nextTryUtc)
+                        {
+                            DateTime nextTryTime = DateTime.SpecifyKind(nextTryUtc, DateTimeKind.Utc).ToLocalTime();
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                                It was reviewed recently. Please come back for the next review on
+                                @nextTryTime.ToString("MMM dd HH:mm").
+                            </MudAlert>
+                        }
+                        <MudButtonGroup FullWidth="true" OverrideStyles="false" Variant="Variant.Filled">
+                            <MudButton Color="Color.Error" OnClick="@OnForgetAsync" Disabled="@IsAnswerDisabled"
+                                       StartIcon="@Icons.Material.Filled.Close">
+                                Forget
+                            </MudButton>
+                            <MudButton Color="Color.Info" OnClick="@ToggleAnswerDisplay"
+                                       StartIcon="@(_isAnswerVisible ? @Icons.Material.Filled.VisibilityOff : @Icons.Material.Filled.Visibility)">
+                                Answer
+                            </MudButton>
+                            <MudButton Color="Color.Success" OnClick="@OnRememberAsync" Disabled="@IsAnswerDisabled"
+                                       StartIcon="@Icons.Material.Filled.Check">
+                                Remember
+                            </MudButton>
+                        </MudButtonGroup>
+                    </MudStack>
+                </MudCardActions>
+            </MudCard>
+        </MudPaper>
+    </div>
+}
+
+@code {
+    private bool _isLoading = true;
+
+    private DateOnlyRange _dateRange = default!;
+
+    private int _todayReviewsCount = default;
+
+    private string[] _subtitleParts = [];
+
+    private bool _isAnswerVisible = false;
+
+    private string? _reviewCalendarTitle = null;
+
+    private IJSObjectReference? _jsBundle;
+
+    private IJSObjectReference? _jsModule;
+
+    [Parameter]
+    public required string Slug { get; set; }
+
+    private WordModel? Model { get; set; }
+
+    private ICollection<ReviewCalendarItem>? ReviewItems
+    {
+        get
+        {
+            return Model?.Reviews?.Select(x => new ReviewCalendarItem()
+            {
+                Date = DateOnly.FromDateTime(DateTime.SpecifyKind(x.Time, DateTimeKind.Utc).ToLocalTime()),
+                CssClass = x.IsRemembered ? "mud-theme-success" : "mud-theme-error",
+                Tooltip = $"{(x.IsRemembered ? "Remembered" : "Forgotten")} on {x.Time:M}",
+            }).ToList();
+        }
+    }
+
+    private bool IsAnswerDisabled => Model?.NextTryUTC > DateTime.UtcNow;
+
+    public static string GetRoute(string slug)
+        => $"/words/{slug}";
+
+    protected override Task OnParametersSetAsync()
+        => LoadWordAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+            await LoadWordAsync();
+    }
+
+    private async Task LoadWordAsync()
+    {
+        _isLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        _dateRange = new DateOnlyRange(
+            Start: DateOnly.FromDateTime(DateTime.Today.AddYears(-1).AddDays(1)),
+            End: DateOnly.FromDateTime(DateTime.Today));
+
+        try
+        {
+            DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue).ToUniversalTime();
+            DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue).ToUniversalTime();
+
+            await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+            Model = await dbContext.Words
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(x => x.Pronunciations)
+                .Include(x => x.Meanings)
+                    .ThenInclude(x => x.Meanings)
+                    .ThenInclude(x => x.Examples)
+                .Include(x => x.Reviews.Where(review =>
+                    review.Time >= startTime &&
+                    review.Time < endTime))
+                .FirstOrDefaultAsync(x => x.Slug == Slug);
+
+            uint reviewCounts = (uint?)ReviewItems?.Count ?? 0;
+            string reviewString = reviewCounts switch
+            {
+                0 => "No Review",
+                1 => "1 Review",
+                > 1 => $"{reviewCounts} Reviews",
+            };
+            _reviewCalendarTitle = $"{reviewString} in the last year";
+
+            List<string> subtitleParts = [];
+            if (Model?.Cefr is Cefr cefr)
+                subtitleParts.Add(cefr.ToString());
+            if (!string.IsNullOrWhiteSpace(Model?.Position))
+                subtitleParts.Add(Model.Position.ToString());
+            if (!string.IsNullOrWhiteSpace(Model?.Grammar))
+                subtitleParts.Add(Model.Grammar.ToString());
+            _subtitleParts = subtitleParts.ToArray();
+
+            DateTime todayStartTime = DateTime.Today.ToUniversalTime();
+            DateTime tomorrowStartTime = DateTime.Today.AddDays(1).ToUniversalTime();
+            _todayReviewsCount = await dbContext.Reviews
+                .CountAsync(x =>
+                    x.Time >= todayStartTime &&
+                    x.Time < tomorrowStartTime);
+
+            _jsBundle = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                "import", "./scripts/js/app.bundle.js");
+
+            _jsModule = await _jsBundle.InvokeConstructorAsync("Word");
+        }
+        catch
+        {
+
+        }
+
+        _isLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnForgetAsync()
+        => await OnTryAsync(false);
+
+    private async Task OnRememberAsync()
+        => await OnTryAsync(true);
+
+    private void ToggleAnswerDisplay()
+        => _isAnswerVisible = !_isAnswerVisible;
+
+    private async Task PlayAudioAsync(string url)
+    {
+        if (_jsModule is not null)
+            await _jsModule.InvokeVoidAsync("play", url);
+    }
+
+    private void GoBackHome()
+    {
+        string url = Home.GetRoute();
+        Nav.NavigateTo(url, replace: false);
+    }
+
+    private void NavigateToRandomCard()
+    {
+        string url = RandomWord.GetRoute();
+        Nav.NavigateTo(url, replace: false);
+    }
+
+    private async Task OnTryAsync(bool isRemember)
+    {
+        if (Model is null)
+            return;
+
+        Review review = new()
+        {
+            WordId = Model.Id,
+            IsRemembered = isRemember,
+            Time = DateTime.UtcNow,
+        };
+
+        if (isRemember)
+        {
+            const int MaxLevel = 5;
+            Model.LeitnerLevel = Model.LeitnerLevel < MaxLevel
+                ? Model.LeitnerLevel + 1
+                : MaxLevel;
+        }
+        else
+            Model.LeitnerLevel = 0;
+
+        int nextDays = (int)Math.Pow(2, Model.LeitnerLevel);
+        Model.NextTryUTC = DateTime.UtcNow.AddDays(nextDays);
+
+        await using ApplicationDbContext? dbContext = await DbFactory.CreateDbContextAsync();
+        await dbContext.Reviews.AddAsync(review);
+        dbContext.Words.Update(Model);
+        await dbContext.SaveChangesAsync();
+
+        NavigateToRandomCard();
+    }
+}

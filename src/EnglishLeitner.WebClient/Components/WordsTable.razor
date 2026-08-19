@@ -1,0 +1,199 @@
+@using EnglishLeitner.EFDesign.Data
+@using EnglishLeitner.WebClient.DTOs
+@using EnglishLeitner.WebClient.Pages
+@using Microsoft.EntityFrameworkCore
+@using WordModel = EFDesign.Models.Word
+
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject NavigationManager Nav
+
+<MudTable T="WordModel" ServerData="ServerReload" OnRowClick="@RowClickEvent" Hover="true" Breakpoint="Breakpoint.Sm"
+          @ref="_table" LoadingProgressColor="Color.Info">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Reviews</MudText>
+        <MudSpacer />
+        <MudSwitch T="bool" Value="@_reviewsOnly" ValueChanged="@(x => OnReviewsOnlyChangedAsync(x))" Label="Reviews only"
+                   Color="Color.Primary" Class="me-4" Size="Size.Small" />
+        <MudTextField T="string" ValueChanged="@(s => OnSearchAsync(s))" Placeholder="Search" Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.Id)" T="WordModel">
+                @nameof(WordModel.Id)
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.HeadWord)" T="WordModel">
+                Word
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.Position)" T="WordModel">
+                @nameof(WordModel.Position)
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.Grammar)" T="WordModel">
+                @nameof(WordModel.Grammar)
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.Cefr)" T="WordModel">
+                @nameof(WordModel.Cefr)
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.Reviews)" T="WordModel">
+                @nameof(WordModel.Reviews)
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(LastReviewKey)" T="WordModel" InitialDirection="SortDirection.Descending">
+                Last Review At
+            </MudTableSortLabel>
+        </MudTh>
+        <MudTh>
+            <MudTableSortLabel SortLabel="@nameof(WordModel.LeitnerLevel)" T="WordModel">
+                Leitner Level
+            </MudTableSortLabel>
+        </MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="@nameof(WordModel.Id)">@context.Id</MudTd>
+        <MudTd DataLabel="@nameof(WordModel.HeadWord)" Style="text-transform: capitalize;">@context.HeadWord</MudTd>
+        <MudTd DataLabel="@nameof(WordModel.Position)">@context.Position</MudTd>
+        <MudTd DataLabel="@nameof(WordModel.Grammar)">@context.Grammar</MudTd>
+        <MudTd DataLabel="@nameof(WordModel.Cefr)">@context.Cefr</MudTd>
+        <MudTd DataLabel="@nameof(WordModel.Reviews)">
+            @if(@context.Reviews.Count > 0)
+            {
+                @context.Reviews.Count
+            }
+            else
+            {
+                <text>No Review</text>
+            }
+        </MudTd>
+        <MudTd DataLabel="@nameof(LastReviewKey)">
+            @if (context.Reviews.Count > 0)
+            {
+                @context.Reviews.Max(x => x.Time).ToLocalTime()
+            }
+            else
+            {
+                <text>No Review</text>
+            }
+        </MudTd>
+        <MudTd DataLabel="@nameof(WordModel.LeitnerLevel)">
+            @foreach(var _ in Enumerable.Range(0, context.LeitnerLevel))
+            {
+                <MudIcon Icon="@Icons.Material.Outlined.TaskAlt" Color="Color.Success" />
+            }
+            @if (context.LeitnerLevel == 0)
+            {
+                if (context.Reviews.Any())
+                {
+                    <MudIcon Icon="@Icons.Material.Outlined.Cancel" Color="Color.Error" />
+                }
+                else
+                {
+                    <text>No Review</text>
+                }
+            }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No matching records found</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private const string LastReviewKey = "LastReview";
+
+    private MudTable<WordModel> _table = default!;
+
+    private string _searchString = string.Empty;
+
+    private bool _reviewsOnly = true;
+
+    [Parameter]
+    public DateOnlyRange? DateRange { get; set; }
+
+    private async Task<TableData<WordModel>> ServerReload(TableState state, CancellationToken token)
+    {
+        await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+
+        IQueryable<WordModel>? query = dbContext.Words
+            .Include(w => w.Reviews
+                .OrderByDescending(r => r.Time)
+                .Take(1));
+
+        if (!string.IsNullOrWhiteSpace(_searchString))
+            query = query.Where(x =>
+                (x.HeadWord != null && x.HeadWord.Contains(_searchString)) ||
+                (x.Position != null && x.Position.Contains(_searchString)) ||
+                (x.Grammar != null && x.Grammar.Contains(_searchString)) ||
+                (x.Cefr != null && x.Cefr.ToString()!.Contains(_searchString)));
+
+        if (DateRange is not null && _reviewsOnly)
+        {
+            DateTime startTime = DateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
+            DateTime endTime = DateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
+            query = query.Where(x => x.Reviews.Any(y => y.Time >= startTime && y.Time < endTime));
+        }
+
+        int totalItems = await query.CountAsync();
+
+        query = state.SortLabel switch
+        {
+            nameof(WordModel.Id) => query = query.OrderByDirection(state.SortDirection, x => x.Id),
+            nameof(WordModel.HeadWord) => query = query.OrderByDirection(state.SortDirection, x => x.HeadWord),
+            nameof(WordModel.Position) => query = query.OrderByDirection(state.SortDirection, x => x.Position),
+            nameof(WordModel.Grammar) => query = query.OrderByDirection(state.SortDirection, x => x.Grammar),
+            nameof(WordModel.Cefr) => query = query.OrderByDirection(state.SortDirection, x => x.Cefr),
+            nameof(WordModel.Reviews) => query = query.OrderByDirection(state.SortDirection, x => x.Reviews.Count),
+            nameof(LastReviewKey) => query = query.OrderByDirection(state.SortDirection, x => x.Reviews.Any() ? x.Reviews.First().Time : DateTime.MinValue),
+            nameof(WordModel.LeitnerLevel) => query = query.OrderByDirection(state.SortDirection, x => x.LeitnerLevel),
+            _ => query,
+        };
+
+        ICollection<WordModel>? pagedData = await query
+            .Skip(state.Page * state.PageSize)
+            .Take(state.PageSize)
+            .ToListAsync();
+
+        return new TableData<WordModel>()
+        {
+            TotalItems = totalItems,
+            Items = pagedData
+        };
+    }
+
+    private async Task OnSearchAsync(string text)
+    {
+        _searchString = text;
+        await _table.ReloadServerData();
+    }
+
+    private async Task OnReviewsOnlyChangedAsync(bool value)
+    {
+        _reviewsOnly = value;
+        await _table.ReloadServerData();
+    }
+
+    private void RowClickEvent(TableRowClickEventArgs<WordModel> tableRowClickEventArgs)
+    {
+        if (tableRowClickEventArgs.Item is WordModel word)
+        {
+            string url = Word.GetRoute(word.Slug);
+            Nav.NavigateTo(url, replace: false);
+        }
+    }
+}

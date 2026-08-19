@@ -28,8 +28,13 @@ foreach (string urlPath in urlPaths)
     Result? result = pageResults.FirstOrDefault(x => x.RelativeUrl == urlPath);
     if (!string.IsNullOrWhiteSpace(result?.DownloadPath))
     {
-        ColoredConsoleWriteLine($"{result} (exists)", ConsoleColor.Green);
-        continue;
+        if (File.Exists(result.DownloadPath))
+        {
+            ColoredConsoleWriteLine($"{result} (exists)", ConsoleColor.Green);
+            continue;
+        }
+        else
+            pageResults.Remove(result);
     }
 
     try

@@ -14,5 +14,5 @@ public class Review
 
     public bool IsRemembered { get; set; }
 
-    public DateTimeOffset Time { get; set; }
+    public DateTime Time { get; set; }
 }

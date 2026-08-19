@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EnglishLeitner.EFDesign.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260814171705_AddReviews")]
+    [Migration("20260818074240_AddReviews")]
     partial class AddReviews
     {
         /// <inheritdoc />
@@ -140,7 +140,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
                     b.Property<bool>("IsRemembered")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("Time")
+                    b.Property<DateTime>("Time")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("WordId")
@@ -166,6 +166,12 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("HeadWord")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LeitnerLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("NextTryUTC")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Position")
@@ -224,7 +230,7 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
             modelBuilder.Entity("EnglishLeitner.EFDesign.Models.Review", b =>
                 {
                     b.HasOne("EnglishLeitner.EFDesign.Models.Word", "Word")
-                        .WithMany()
+                        .WithMany("Reviews")
                         .HasForeignKey("WordId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -247,6 +253,8 @@ namespace EnglishLeitner.EFDesign.Data.Migrations
                     b.Navigation("Meanings");
 
                     b.Navigation("Pronunciations");
+
+                    b.Navigation("Reviews");
                 });
 #pragma warning restore 612, 618
         }

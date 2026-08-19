@@ -18,14 +18,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.Property(e => e.Refs)
                 .HasConversion(
-                    v => string.Join('\n', v),
-                    v => v.Split("\n") ?? Array.Empty<string>()
+                    v => string.Join('\n', v.Where(x => !string.IsNullOrWhiteSpace(x))),
+                    v => v.Split("\n")
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList() ?? new List<string>()
                 );
 
             entity.Property(e => e.Topics)
                 .HasConversion(
-                    v => string.Join('\n', v),
-                    v => v.Split("\n") ?? Array.Empty<string>()
+                    v => string.Join('\n', v.Where(x => !string.IsNullOrWhiteSpace(x))),
+                    v => v.Split("\n")
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .ToList() ?? new List<string>()
                 );
         });
     }
