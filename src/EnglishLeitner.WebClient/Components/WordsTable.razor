@@ -10,7 +10,7 @@
 <MudTable T="WordModel" ServerData="ServerReload" OnRowClick="@RowClickEvent" Hover="true" Breakpoint="Breakpoint.Sm"
           @ref="_table" LoadingProgressColor="Color.Info">
     <ToolBarContent>
-        <MudText Typo="Typo.h6">Reviews</MudText>
+        <MudText Typo="Typo.h6">Words</MudText>
         <MudSpacer />
         <MudSwitch T="bool" Value="@_reviewsOnly" ValueChanged="@(x => OnReviewsOnlyChangedAsync(x))" Label="Reviews only"
                    Color="Color.Primary" Class="me-4" Size="Size.Small" />

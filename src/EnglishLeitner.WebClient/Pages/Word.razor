@@ -89,7 +89,7 @@ else
 
                     <MudDivider />
 
-                    <ReviewCalendar Items="@ReviewItems" DateRange="@_dateRange" Title="@_reviewCalendarTitle" />
+                    <ReviewCalendar Items="@ReviewItems" DateRange="@_dateRange" Title="@ReviewCalendarTitle" />
 
                     <MudDivider />
 
@@ -284,8 +284,6 @@ else
 
     private bool _isAnswerVisible = false;
 
-    private string? _reviewCalendarTitle = null;
-
     private IJSObjectReference? _jsBundle;
 
     private IJSObjectReference? _jsModule;
@@ -307,6 +305,13 @@ else
             }).ToList();
         }
     }
+
+    private string ReviewCalendarTitle => ReviewItems?.Count switch
+    {
+        > 1 => $"{ReviewItems.Count} Reviews",
+        1 => "1 Review",
+        0 or _ => "No Review",
+    } + " in the last year";
 
     private bool IsAnswerDisabled => Model?.NextTryUTC > DateTime.UtcNow;
 
@@ -350,15 +355,6 @@ else
                     review.Time >= startTime &&
                     review.Time < endTime))
                 .FirstOrDefaultAsync(x => x.Slug == Slug);
-
-            uint reviewCounts = (uint?)ReviewItems?.Count ?? 0;
-            string reviewString = reviewCounts switch
-            {
-                0 => "No Review",
-                1 => "1 Review",
-                > 1 => $"{reviewCounts} Reviews",
-            };
-            _reviewCalendarTitle = $"{reviewString} in the last year";
 
             List<string> subtitleParts = [];
             if (Model?.Cefr is Cefr cefr)

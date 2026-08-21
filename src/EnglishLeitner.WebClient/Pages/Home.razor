@@ -3,13 +3,17 @@
 
 @using DTOs
 @using EnglishLeitner.EFDesign.Data
+@using EnglishLeitner.WebClient.Settings
 @using EnglishLeitner.WebClient.Components
 @using Microsoft.EntityFrameworkCore
 @using SqliteWasmBlazor
 
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IConfiguration Configuration
+@inject IHttpClientFactory HttpClientFactory
 @inject ISqliteWasmDatabaseService DbService
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
-@inject IHttpClientFactory HttpClientFactory
 
 <PageTitle>Home</PageTitle>
 
@@ -19,7 +23,26 @@
 }
 else if (_isDbNotImported)
 {
-    <MudButton OnClick="OnDownloadDbClick">Download Database</MudButton>
+    <MudText Typo="Typo.h1" Style="text-align: center;">
+        English Leitner
+    </MudText>
+
+    @if (_isDbDownloading)
+    {
+        <MudText Typo="Typo.h6" Class="mt-5 mb-3" Style="text-align: center;">
+            Initializing
+        </MudText>
+
+        <MudProgressLinear Color="Color.Info" Rounded="true" Striped="true" Size="Size.Large" Value="@_dbDownloadProgress"
+                           Class="my-7">
+            <MudText Typo="Typo.subtitle1" Color="Color.Default">
+                <b>@_dbDownloadProgress.ToString("0.0")%</b>
+                <MudText Typo="Typo.caption" Color="Color.Default">
+                    (@FormatBytes(_receivedBytes)/@FormatBytes(_totalBytes))
+                </MudText>
+            </MudText>
+        </MudProgressLinear>
+    }
 }
 else
 {
@@ -32,26 +55,31 @@ else
 
     <div class="d-flex justify-center flex-grow-1 gap-4 my-4">
         <MudPaper Width="750px" Class="pa-3" Style="max-width: 100%;">
-            <ReviewCalendar Items="@ReviewItems" DateRange="@_dateRange" Title="@_reviewCalendarTitle" />
+            <ReviewCalendar Items="@ReviewItems" DateRange="@_dateRange" Title="@ReviewCalendarTitle" />
         </MudPaper>
     </div>
 
     <WordsTable DateRange="_dateRange" />
-}
+
+    <div class="d-flex justify-center flex-grow-1 gap-4 my-4">
+        <MudButton OnClick="OnDeleteDatabaseAsync" StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">Clean
+            History</MudButton>
+        </div>
+    }
 
 
 @code {
     const string DbName = "app.db";
 
-    public Dictionary<DateOnly, int>? Model { get; set; }
-
     private bool _isLoading = true;
+    private bool _isDbNotImported = false;
+    private bool _isDbDownloading = false;
+    private double _dbDownloadProgress = 0;
+    private long _totalBytes = 0;
+    private long _receivedBytes = 0;
+    private DateOnlyRange _dateRange = null!;
 
-    private bool _isDbNotImported = default;
-
-    private string? _reviewCalendarTitle = null;
-
-    private DateOnlyRange _dateRange = default!;
+    public Dictionary<DateOnly, int>? Model { get; set; }
 
     private ICollection<ReviewCalendarItem>? ReviewItems
     {
@@ -75,6 +103,13 @@ else
         }
     }
 
+    private string ReviewCalendarTitle => Model?.Sum(x => x.Value) switch
+    {
+        > 1 => $"{Model?.Sum(x => x.Value)} Reviews",
+        1 => "1 Review",
+        0 or _ => "No Review",
+    } + " in the last year";
+
     public static string GetRoute()
         => $"/";
 
@@ -96,7 +131,15 @@ else
             {
                 _isDbNotImported = !await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
 
-                if (!_isDbNotImported)
+                if (_isDbNotImported)
+                {
+                    Task _ = Task.Run(async () =>
+                    {
+                        await DownloadDatabaseAsync();
+                        RefreshPage();
+                    });
+                }
+                else
                 {
                     DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
                     DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
@@ -112,15 +155,6 @@ else
                             DateOnly.FromDateTime(
                                 DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime()))
                         .ToDictionary(g => g.Key, g => g.Count());
-
-                    uint reviewCounts = (uint)(Model?.Sum(x => x.Value) ?? 0);
-                    string reviewString = reviewCounts switch
-                    {
-                        0 => "No Review",
-                        1 => "1 Review",
-                        > 1 => $"{reviewCounts} Reviews",
-                    };
-                    _reviewCalendarTitle = $"{reviewString} in the last year";
                 }
 
             }
@@ -134,31 +168,94 @@ else
         }
     }
 
-    private Task OnDownloadDbClick()
-        => DownloadDatabaseAsync();
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0)
+            return "0 B";
+
+        string[] units = ["B", "KiB", "MiB", "GiB", "TiB"];
+
+        var unitIndex = (int)Math.Floor(Math.Log(bytes, 1024));
+        var value = bytes / Math.Pow(1024, unitIndex);
+
+        return $"{value:0.##} {units[unitIndex]}";
+    }
+
+    private void RefreshPage()
+        => Nav.NavigateTo(Nav.Uri, forceLoad: true);
+
+    private async Task OnDeleteDatabaseAsync()
+    {
+        bool isExists = await DbService.ExistsDatabaseAsync(DbName);
+        if (!isExists)
+            return;
+
+        await DbService.DeleteDatabaseAsync(DbName);
+        RefreshPage();
+    }
 
     private async Task DownloadDatabaseAsync(bool force = false, CancellationToken cancellationToken = default)
     {
+        _isDbDownloading = true;
+        _dbDownloadProgress = 0;
+        await InvokeAsync(StateHasChanged);
+
         try
         {
             bool isExists = await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
             if (isExists && !force)
                 return;
 
+            ApplicationSettings appSettings = Configuration
+                .GetRequiredSection("Application").Get<ApplicationSettings>()!;
+
             using HttpClient httpClient = HttpClientFactory.CreateClient("Application");
-            byte[] dbBytes = await httpClient.GetByteArrayAsync(DbName, cancellationToken);
+            using HttpRequestMessage request = new(HttpMethod.Get, appSettings.DatabaseUrl);
+            using HttpResponseMessage response = await httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead);
+
+            response.EnsureSuccessStatusCode();
+
+            _totalBytes = response.Content.Headers.ContentLength ?? 0;
+
+            await using Stream fileStream = await response.Content.ReadAsStreamAsync();
+            await using MemoryStream memoryStream = new();
+
+            byte[] buffer = new byte[64 * 1024]; // 64KB
+            int count;
+            _receivedBytes = 0;
+
+            while ((count = await fileStream.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
+            {
+                await memoryStream.WriteAsync(buffer.AsMemory(0, count));
+
+                _receivedBytes += count;
+
+                if (_totalBytes > 0)
+                    _dbDownloadProgress = (_receivedBytes * 100d) / _totalBytes;
+
+                await InvokeAsync(StateHasChanged);
+            }
+
+            byte[] fileBytes = memoryStream.ToArray();
+            _dbDownloadProgress = 100;
 
             if (isExists)
                 await DbService.DeleteDatabaseAsync(DbName, cancellationToken);
 
-            await DbService.ImportDatabaseAsync(DbName, dbBytes, cancellationToken);
+            await DbService.ImportDatabaseAsync(DbName, fileBytes, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            throw;
+            if (!string.IsNullOrWhiteSpace(ex.Message))
+                Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isDbDownloading = false;
+            _dbDownloadProgress = default;
+            await InvokeAsync(StateHasChanged);
         }
     }
-
-    private Task ResetDatabaseAsync(CancellationToken cancellationToken = default)
-        => DownloadDatabaseAsync(true, cancellationToken);
 }
