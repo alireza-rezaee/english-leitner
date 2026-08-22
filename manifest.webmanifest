@@ -1,6 +1,6 @@
 {
-  "name": "EnglishLeitner.WebClient",
-  "short_name": "EnglishLeitner.WebClient",
+  "name": "English Leitner",
+  "short_name": "English Leitner",
   "id": "./",
   "start_url": "./",
   "display": "standalone",

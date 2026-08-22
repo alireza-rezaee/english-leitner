@@ -1,3 +1,35 @@
+/* /Components/ReviewCalendar.razor.rz.scp.css */
+.review-calendar[b-5b7o6l6pq4]  table {
+    border-spacing: 3px;
+    border-collapse: separate;
+}
+
+.review-calendar[b-5b7o6l6pq4]  tbody td {
+    padding: 0 !important;
+}
+
+.review-calendar[b-5b7o6l6pq4]  tbody .mud-tooltip-root {
+    display: block;
+    height: 10px !important;
+    width: 10px !important;
+}
+
+.review-calendar[b-5b7o6l6pq4]  tbody .review-state {
+    height: 10px !important;
+    width: 10px !important;
+}
+
+.opacity-25[b-5b7o6l6pq4] {
+    opacity: 0.25 !important;
+}
+
+.opacity-50[b-5b7o6l6pq4] {
+    opacity: 0.50 !important;
+}
+
+.opacity-75[b-5b7o6l6pq4] {
+    opacity: 0.75 !important;
+}
 /* /Layout/MainLayout.razor.rz.scp.css */
 .page[b-mnzrjj1mcl] {
     position: relative;
