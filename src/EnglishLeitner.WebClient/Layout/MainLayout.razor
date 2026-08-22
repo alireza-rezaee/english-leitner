@@ -16,9 +16,9 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
-                       OnClick="@DrawerToggle" />
-        <MudText Typo="Typo.h6" Class="ml-2">Application</MudText>
+        <MudIconButton Icon="@Icons.Material.Outlined.Home" Color="Color.Inherit" Edge="Edge.Start"
+                       Href="/" />
+        <MudText Typo="Typo.h6" Class="ml-2">English Leitner</MudText>
         <MudSpacer />
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggleAsync" />
         <DriveSyncButton />
@@ -35,13 +35,9 @@
                         Internet</MudChip>
                     </NoInternet>
                 </ConnectionView>
-                <MudFab Href="https://github.com/alireza-rezaee/english-leitner" Variant="Variant.Text"
-                        StartIcon="@Icons.Material.Outlined.Info" Size="Size.Medium" />
+                @* <MudFab Href="https://github.com/alireza-rezaee/english-leitner" Variant="Variant.Text"
+                        StartIcon="@Icons.Material.Outlined.Info" Size="Size.Medium" /> *@
             </MudAppBar>
-
-            <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-                <NavMenu />
-            </MudDrawer>
 
             <MudMainContent Class="pt-16 pa-4">
                 @Body
@@ -49,7 +45,6 @@
         </MudLayout>
 
 @code {
-    private bool _drawerOpen = true;
     private bool _isDarkMode = true;
     private MudTheme? _theme;
 
@@ -67,11 +62,6 @@
         };
 
         Connectivity.ConnectionStatusChanged += ConnectionStatusChanged;
-    }
-
-    private void DrawerToggle()
-    {
-        _drawerOpen = !_drawerOpen;
     }
 
     private async Task DarkModeToggleAsync()

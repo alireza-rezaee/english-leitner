@@ -17,6 +17,7 @@
 
 @if (_isLoading)
 {
+    <PageTitle>English Leitner</PageTitle>
     <MudText>Loading...</MudText>
 }
 else if (Model is null)
@@ -25,7 +26,7 @@ else if (Model is null)
 }
 else
 {
-    <PageTitle>@Model.HeadWord</PageTitle>
+    <PageTitle>@Model.HeadWord | English Leitner</PageTitle>
 
     <div class="mt-2 d-flex justify-center">
         <MudPaper Width="750px" Style="max-width: 100%;">
