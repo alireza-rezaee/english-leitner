@@ -61,7 +61,7 @@ builder.Services.AddHttpClient(name: ApplicationAuthenticationStateProvider.Goog
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
     .CreateClient("Application"));
-
+    
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 {
 #if DEBUG
@@ -72,7 +72,8 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqliteWasm(connection);
 });
 
-builder.Services.AddSqliteWasm();
+builder.Services.AddSqliteWasm(options =>
+    options.BaseHref = new Uri(builder.HostEnvironment.BaseAddress).AbsolutePath);
 builder.Services.AddScoped<ISyncService, DriveSyncService>();
 
 var host = builder.Build();

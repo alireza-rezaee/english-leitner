@@ -5,30 +5,33 @@ on:
     branches:
       - main
     paths:
-      - 'src/EnglishLeitner.WebClient/**'
       - '*.slnx'
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/cd.yml'
+      - 'src/EnglishLeitner.WebClient/**'
 permissions:
-  contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  gh-pages:
+  deploy:
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     env:
       DOTNET_NOLOGO: true
-      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
-      SDK_VERSION: 10.0.x
       PROJECT_PATH: "./src/EnglishLeitner.WebClient"
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
-          path: ${{ env.NUGET_PACKAGES }}
+          path: ${{ github.workspace }}/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln', '**/Directory.Packages.props') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
@@ -36,13 +39,16 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: ${{ env.SDK_VERSION }}
+          dotnet-version: 10.0.x
           dotnet-quality: 'ga'
           cache: true
           cache-dependency-path: |
             **/*.slnx
             **/Directory.Packages.props
             ${{ env.PROJECT_PATH }}/**/*.csproj
+
+      - name: Install .NET wasm-tools workload
+        run: dotnet workload install wasm-tools
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -63,24 +69,31 @@ jobs:
         run: npm i --save
         working-directory: ${{ env.PROJECT_PATH }}
 
+      - name: Download Database from GitHub Releases
+        run: |
+          mkdir -p data
+          curl -L -o data/app.db "https://github.com/alireza-rezaee/english-leitner/releases/download/0.9.0-alpha.1/app.db"
+        working-directory: ${{ env.PROJECT_PATH }}/wwwroot
+
+      - name: Set base-tag in index.html for GitHub Pages
+        run: sed -i 's/<base href="\/" \/>/<base href="\/${{ github.event.repository.name }}\/" \/>/g' index.html
+        working-directory: ${{ env.PROJECT_PATH }}/wwwroot
+
       - name: Publish .NET Project
         run: dotnet publish EnglishLeitner.WebClient.csproj -c Release -o release --nologo
         working-directory: ${{ env.PROJECT_PATH }}
 
-      - name: Change base-tag in index.html from / to english-leitner
-        run: sed -i 's/<base href="\/" \/>/<base href="\/english-leitner\/" \/>/g' release/wwwroot/index.html
-        working-directory: ${{ env.PROJECT_PATH }}
+      - name: Add .nojekyll and 404.html file
+        run: |
+          touch .nojekyll
+          cp index.html 404.html
+        working-directory: ${{ env.PROJECT_PATH }}/release/wwwroot
 
-      - name: Copy index.html to 404.html
-        run: cp release/wwwroot/index.html release/wwwroot/404.html
-        working-directory: ${{ env.PROJECT_PATH }}
-
-      - name: Add .nojekyll file
-        run: touch release/wwwroot/.nojekyll
-        working-directory: ${{ env.PROJECT_PATH }}
-
-      - name: Commit wwwroot to gh-pages
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
         with:
-          branch: gh-pages
-          folder: ${{ env.PROJECT_PATH }}/release/wwwroot
+          path: ${{ env.PROJECT_PATH }}/release/wwwroot
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

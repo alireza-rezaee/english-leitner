@@ -222,22 +222,23 @@ else
             using HttpRequestMessage request = new(HttpMethod.Get, appSettings.DatabaseUrl);
             using HttpResponseMessage response = await httpClient.SendAsync(
                 request,
-                HttpCompletionOption.ResponseHeadersRead);
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken);
 
             response.EnsureSuccessStatusCode();
 
             _totalBytes = response.Content.Headers.ContentLength ?? 0;
 
-            await using Stream fileStream = await response.Content.ReadAsStreamAsync();
+            await using Stream fileStream = await response.Content.ReadAsStreamAsync(cancellationToken);
             await using MemoryStream memoryStream = new();
 
             byte[] buffer = new byte[64 * 1024]; // 64KB
             int count;
             _receivedBytes = 0;
 
-            while ((count = await fileStream.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
+            while ((count = await fileStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
             {
-                await memoryStream.WriteAsync(buffer.AsMemory(0, count));
+                await memoryStream.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
 
                 _receivedBytes += count;
 
@@ -247,13 +248,14 @@ else
                 await InvokeAsync(StateHasChanged);
             }
 
-            byte[] fileBytes = memoryStream.ToArray();
             _dbDownloadProgress = 100;
+            await InvokeAsync(StateHasChanged);
 
             if (isExists)
                 await DbService.DeleteDatabaseAsync(DbName, cancellationToken);
 
-            await DbService.ImportDatabaseAsync(DbName, fileBytes, cancellationToken);
+            memoryStream.Position = 0;
+            await DbService.ImportDatabaseFromStreamAsync(DbName, memoryStream, _totalBytes, null, cancellationToken);
         }
         catch (Exception ex)
         {

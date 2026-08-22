@@ -10,16 +10,16 @@
 
   <ItemGroup>
     <PackageReference Include="Blazor.LocalStorage" Version="10.1.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.10" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.10" />
-    <PackageReference Include="Microsoft.TypeScript.MSBuild" Version="7.0.0">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
+    <PackageReference Include="Microsoft.TypeScript.MSBuild" Version="7.0.1">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="MudBlazor" Version="9.8.0" />
-    <PackageReference Include="SqliteWasmBlazor" Version="0.9.1-pre" />
+    <PackageReference Include="SqliteWasmBlazor" Version="0.9.3-pre" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,5 +38,5 @@
   <ItemGroup>
     <ProjectReference Include="../EnglishLeitner.EFDesign/EnglishLeitner.EFDesign.csproj" />
   </ItemGroup>
-
+  
 </Project>
