@@ -1,9 +1,13 @@
 @using EnglishLeitner.EFDesign.Data
 @using EnglishLeitner.WebClient.DTOs
 @using EnglishLeitner.WebClient.Pages
+@using EnglishLeitner.WebClient.Services
 @using Microsoft.EntityFrameworkCore
 @using WordModel = EFDesign.Models.Word
 
+@implements IDisposable
+
+@inject ISyncService SyncService
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject NavigationManager Nav
 
@@ -12,10 +16,11 @@
     <ToolBarContent>
         <MudText Typo="Typo.h6">Words</MudText>
         <MudSpacer />
-        <MudSwitch T="bool" Value="@_reviewsOnly" ValueChanged="@(x => OnReviewsOnlyChangedAsync(x))" Label="Reviews only"
-                   Color="Color.Primary" Class="me-4" Size="Size.Small" />
-        <MudTextField T="string" ValueChanged="@(s => OnSearchAsync(s))" Placeholder="Search" Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        <MudSwitch T="bool" Value="@_reviewsOnly" ValueChanged="@(x => OnReviewsOnlyChangedAsync(x))"
+                   Label="Reviews only" Color="Color.Primary" Class="me-4" Size="Size.Small" />
+        <MudTextField T="string" ValueChanged="@(s => OnSearchAsync(s))" Placeholder="Search"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                      Class="mt-0"></MudTextField>
     </ToolBarContent>
     <HeaderContent>
         <MudTh>
@@ -49,7 +54,8 @@
             </MudTableSortLabel>
         </MudTh>
         <MudTh>
-            <MudTableSortLabel SortLabel="@nameof(LastReviewKey)" T="WordModel" InitialDirection="SortDirection.Descending">
+            <MudTableSortLabel SortLabel="@nameof(LastReviewKey)" T="WordModel"
+                               InitialDirection="SortDirection.Descending">
                 Last Review At
             </MudTableSortLabel>
         </MudTh>
@@ -66,7 +72,7 @@
         <MudTd DataLabel="@nameof(WordModel.Grammar)">@context.Grammar</MudTd>
         <MudTd DataLabel="@nameof(WordModel.Cefr)">@context.Cefr</MudTd>
         <MudTd DataLabel="@nameof(WordModel.Reviews)">
-            @if(@context.Reviews.Count > 0)
+            @if (@context.Reviews.Count > 0)
             {
                 @context.Reviews.Count
             }
@@ -86,7 +92,7 @@
             }
         </MudTd>
         <MudTd DataLabel="@nameof(WordModel.LeitnerLevel)">
-            @foreach(var _ in Enumerable.Range(0, context.LeitnerLevel))
+            @foreach (var _ in Enumerable.Range(0, context.LeitnerLevel))
             {
                 <MudIcon Icon="@Icons.Material.Outlined.TaskAlt" Color="Color.Success" />
             }
@@ -126,6 +132,14 @@
     [Parameter]
     public DateOnlyRange? DateRange { get; set; }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
+    }
+
     private async Task<TableData<WordModel>> ServerReload(TableState state, CancellationToken token)
     {
         await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
@@ -159,7 +173,8 @@
             nameof(WordModel.Grammar) => query = query.OrderByDirection(state.SortDirection, x => x.Grammar),
             nameof(WordModel.Cefr) => query = query.OrderByDirection(state.SortDirection, x => x.Cefr),
             nameof(WordModel.Reviews) => query = query.OrderByDirection(state.SortDirection, x => x.Reviews.Count),
-            nameof(LastReviewKey) => query = query.OrderByDirection(state.SortDirection, x => x.Reviews.Any() ? x.Reviews.First().Time : DateTime.MinValue),
+            nameof(LastReviewKey) => query = query.OrderByDirection(state.SortDirection, x => x.Reviews.Any() ?
+x.Reviews.First().Time : DateTime.MinValue),
             nameof(WordModel.LeitnerLevel) => query = query.OrderByDirection(state.SortDirection, x => x.LeitnerLevel),
             _ => query,
         };
@@ -195,5 +210,13 @@
             string url = Word.GetRoute(word.Slug);
             Nav.NavigateTo(url, replace: false);
         }
+    }
+
+    private Task HandleSyncSucceeded()
+        => _table.ReloadServerData();
+
+    public void Dispose()
+    {
+        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
     }
 }

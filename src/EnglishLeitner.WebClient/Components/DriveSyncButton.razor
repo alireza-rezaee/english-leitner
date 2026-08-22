@@ -1,13 +1,17 @@
+@using EnglishLeitner.EFDesign.Data
 @using EnglishLeitner.WebClient.Identity
+@using EnglishLeitner.WebClient.Services
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
-@using static EnglishLeitner.WebClient.Identity.ApplicationAuthenticationStateProvider
 
-@implements IAsyncDisposable
+@implements IDisposable
 
 @inject ISnackbar Snackbar
 @inject IJSRuntime JSRuntime
+@inject ISyncService SyncService
 @inject ILocalStorageService LocalStorage
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
 @inject ApplicationAuthenticationStateProvider AuthStateProvider
 
 <ConnectionView>
@@ -33,9 +37,12 @@
     </NoInternet>
 </ConnectionView>
 
-
-
 @code {
+    private SyncStatus _syncStatus = SyncStatus.Normal;
+    private IJSObjectReference? _jsBundle;
+    private IJSObjectReference? _jsModule;
+    private DotNetObjectReference<DriveSyncButton>? _dotnetRef;
+
     private string SyncIcon => _syncStatus switch
     {
         SyncStatus.InProcess => Icons.Material.Outlined.CloudSync,
@@ -52,68 +59,54 @@
         SyncStatus.Normal or _ => Color.Default,
     };
 
-    private SyncStatus _syncStatus = SyncStatus.Normal;
-    private IJSObjectReference? _jsModule;
-    private IJSObjectReference? _jsGoogleDrive;
-    private DotNetObjectReference<DriveSyncButton>? _dotnetRef;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await base.OnAfterRenderAsync(firstRender);
+        
         if (firstRender)
         {
-            _dotnetRef = DotNetObjectReference.Create(this);
-
-            _jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
-                "import", "./scripts/js/app.bundle.js");
-
-            _jsGoogleDrive = await _jsModule.InvokeConstructorAsync(
-                "DriveSync", _dotnetRef);
+            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
+            SyncService.OnSyncFailed += HandleSyncFailed;
         }
     }
 
     private async Task SaveAsync()
     {
-        TokenInfo? tokenInfo = await AuthStateProvider.GetTokenAsync();
-        if (_jsGoogleDrive is not null && !string.IsNullOrWhiteSpace(tokenInfo?.Token))
-            await _jsGoogleDrive.InvokeVoidAsync("saveAsync", tokenInfo.Token);
-    }
-
-    [JSInvokable]
-    public async Task OnJSSyncSuccededAsync()
-    {
-        _syncStatus = SyncStatus.Succeded;
+        _syncStatus = SyncStatus.InProcess;
         await InvokeAsync(StateHasChanged);
 
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        await SyncService.SyncAsync();
 
         _syncStatus = SyncStatus.Normal;
         await InvokeAsync(StateHasChanged);
     }
 
-    [JSInvokable]
-    public async Task OnJSSyncFailedAsync(string error)
-    {
-        if (!string.IsNullOrWhiteSpace(error))
-            Snackbar.Add($"Sync error: {error}", Severity.Error);
+    private Task HandleSyncSucceeded()
+        => KeepSyncStatusForCertainTime(TimeSpan.FromSeconds(5), SyncStatus.Succeded);
 
-        _syncStatus = SyncStatus.Failed;
+    private Task HandleSyncFailed(string errorMessage)
+    {
+        if (!string.IsNullOrWhiteSpace(errorMessage))
+            Snackbar.Add($"Sync error: {errorMessage}", Severity.Error);
+
+        return KeepSyncStatusForCertainTime(TimeSpan.FromSeconds(5), SyncStatus.Failed);
+    }
+
+    private async Task KeepSyncStatusForCertainTime(TimeSpan time, SyncStatus syncStatus)
+    {
+        _syncStatus = syncStatus;
         await InvokeAsync(StateHasChanged);
 
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        await Task.Delay(time);
 
         _syncStatus = SyncStatus.Normal;
         await InvokeAsync(StateHasChanged);
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        if (_jsGoogleDrive is not null)
-            await _jsGoogleDrive.DisposeAsync();
-
-        if (_jsModule is not null)
-            await _jsModule.DisposeAsync();
-
-        _dotnetRef?.Dispose();
+        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
+        SyncService.OnSyncFailed -= HandleSyncFailed;
     }
 
     private enum SyncStatus

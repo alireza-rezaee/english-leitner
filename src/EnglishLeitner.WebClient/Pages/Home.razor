@@ -4,13 +4,19 @@
 @using DTOs
 @using EnglishLeitner.EFDesign.Data
 @using EnglishLeitner.WebClient.Settings
+@using EnglishLeitner.WebClient.Services
 @using EnglishLeitner.WebClient.Components
 @using Microsoft.EntityFrameworkCore
 @using SqliteWasmBlazor
+@using static EnglishLeitner.WebClient.Services.DriveSyncService;
+
+@implements IDisposable
 
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject ISyncService SyncService
 @inject IConfiguration Configuration
+@inject ILocalStorageService LocalStorage
 @inject IHttpClientFactory HttpClientFactory
 @inject ISqliteWasmDatabaseService DbService
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
@@ -116,56 +122,61 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         await base.OnAfterRenderAsync(firstRender);
-        CancellationToken cancellationToken = default;
 
         if (firstRender)
         {
-            _isLoading = true;
-            await InvokeAsync(StateHasChanged);
-
-            _dateRange = new DateOnlyRange(
-                Start: DateOnly.FromDateTime(DateTime.Now.Date.AddYears(-1).AddDays(1)),
-                End: DateOnly.FromDateTime(DateTime.Now.Date));
-
-            try
-            {
-                _isDbNotImported = !await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
-
-                if (_isDbNotImported)
-                {
-                    Task _ = Task.Run(async () =>
-                    {
-                        await DownloadDatabaseAsync();
-                        RefreshPage();
-                    });
-                }
-                else
-                {
-                    DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
-                    DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
-
-                    await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
-                    List<DateTime> reviewTimes = await dbContext.Reviews
-                        .Where(x => x.Time >= startTime && x.Time < endTime)
-                        .Select(x => x.Time)
-                        .ToListAsync();
-
-                    Model = reviewTimes
-                        .GroupBy(utcTime =>
-                            DateOnly.FromDateTime(
-                                DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime()))
-                        .ToDictionary(g => g.Key, g => g.Count());
-                }
-
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-
-            _isLoading = false;
-            await InvokeAsync(StateHasChanged);
+            await LoadAsync();
+            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
         }
+    }
+
+    private async Task LoadAsync(CancellationToken cancellationToken = default)
+    {
+        _isLoading = true;
+        await InvokeAsync(StateHasChanged);
+
+        _dateRange = new DateOnlyRange(
+            Start: DateOnly.FromDateTime(DateTime.Now.Date.AddYears(-1).AddDays(1)),
+            End: DateOnly.FromDateTime(DateTime.Now.Date));
+
+        try
+        {
+            _isDbNotImported = !await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
+
+            if (_isDbNotImported)
+            {
+                Task _ = Task.Run(async () =>
+                {
+                    await DownloadDatabaseAsync();
+                    await LoadAsync();
+                });
+            }
+            else
+            {
+                DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
+                DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
+
+                await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+                List<DateTime> reviewTimes = await dbContext.Reviews
+                    .Where(x => x.Time >= startTime && x.Time < endTime)
+                    .Select(x => x.Time)
+                    .ToListAsync();
+
+                Model = reviewTimes
+                    .GroupBy(utcTime =>
+                        DateOnly.FromDateTime(
+                            DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime()))
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
+
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+
+        _isLoading = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private static string FormatBytes(long bytes)
@@ -181,17 +192,15 @@ else
         return $"{value:0.##} {units[unitIndex]}";
     }
 
-    private void RefreshPage()
-        => Nav.NavigateTo(Nav.Uri, forceLoad: true);
-
     private async Task OnDeleteDatabaseAsync()
     {
         bool isExists = await DbService.ExistsDatabaseAsync(DbName);
         if (!isExists)
             return;
 
+        await LocalStorage.SetItemAsync<DateTime>(JsStorageKeyForClearHistoryTime, DateTime.UtcNow);
         await DbService.DeleteDatabaseAsync(DbName);
-        RefreshPage();
+        await LoadAsync();
     }
 
     private async Task DownloadDatabaseAsync(bool force = false, CancellationToken cancellationToken = default)
@@ -257,5 +266,13 @@ else
             _dbDownloadProgress = default;
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private Task HandleSyncSucceeded()
+            => LoadAsync();
+
+    public void Dispose()
+    {
+        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
     }
 }

@@ -4,11 +4,15 @@
 @using EFDesign.Models;
 @using EnglishLeitner.EFDesign.Data
 @using EnglishLeitner.WebClient.Components
+@using EnglishLeitner.WebClient.Services
 @using Microsoft.EntityFrameworkCore
 @using WordModel = EFDesign.Models.Word
 
+@implements IDisposable
+
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Nav
+@inject ISyncService SyncService
 @inject IDbContextFactory<ApplicationDbContext> DbFactory
 
 @if (_isLoading)
@@ -103,7 +107,7 @@ else
                                         string? head = group.Head ?? Model.HeadWord!;
 
                                         <MudExpansionPanel Text="@head" Icon="@Icons.Material.Filled.MenuBook"
-                                                           IsInitiallyExpanded="true">
+                                                           Expanded="true">
                                             <MudStack Spacing="2">
 
                                                 @foreach (var meaning in group.Meanings)
@@ -326,7 +330,10 @@ else
         await base.OnAfterRenderAsync(firstRender);
 
         if (firstRender)
+        {
             await LoadWordAsync();
+            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
+        }
     }
 
     private async Task LoadWordAsync()
@@ -444,5 +451,13 @@ else
         await dbContext.SaveChangesAsync();
 
         NavigateToRandomCard();
+    }
+
+    private Task HandleSyncSucceeded()
+        => LoadWordAsync();
+
+    public void Dispose()
+    {
+        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
     }
 }

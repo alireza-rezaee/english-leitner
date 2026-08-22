@@ -73,6 +73,7 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 });
 
 builder.Services.AddSqliteWasm();
+builder.Services.AddScoped<ISyncService, DriveSyncService>();
 
 var host = builder.Build();
 await host.Services.InitializeSqliteWasmAsync();
