@@ -2,6 +2,7 @@
 @page "/words"
 
 @using DTOs
+@using System.Data.Common
 @using EnglishLeitner.EFDesign.Data
 @using EnglishLeitner.WebClient.Settings
 @using EnglishLeitner.WebClient.Services
@@ -25,14 +26,6 @@
 
 @if (_isLoading)
 {
-    <MudText>Loading...</MudText>
-}
-else if (_isDbNotImported)
-{
-    <MudText Typo="Typo.h1" Style="text-align: center;">
-        English Leitner
-    </MudText>
-
     @if (_isDbDownloading)
     {
         <MudText Typo="Typo.h6" Class="mt-5 mb-3" Style="text-align: center;">
@@ -47,10 +40,13 @@ else if (_isDbNotImported)
             </MudText>
         </MudProgressLinear>
     }
+    else
+    {
+        <MudText>Loading...</MudText>
+    }
 }
-else
+else if (_isDbImported)
 {
-
     <MudText Typo="Typo.h1" Style="text-align: center;">
         English Leitner
     </MudText>
@@ -66,9 +62,9 @@ else
     <WordsTable DateRange="_dateRange" />
 
     <div class="d-flex justify-center flex-grow-1 gap-4 my-4">
-        <MudButton OnClick="OnDeleteDatabaseAsync" StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">
-            Clean
-            History
+        <MudButton OnClick="@(async () => await OnDeleteDatabaseAsync(_disposeCts.Token))"
+                   StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">
+            Clean History
         </MudButton>
     </div>
 }
@@ -77,11 +73,13 @@ else
 @code {
     const string DbName = "app.db";
     private bool _isLoading = true;
-    private bool _isDbNotImported = false;
+    private bool _isDbImported = true;
     private bool _isDbDownloading = false;
     private double _dbDownloadProgress = 0;
     private string? _dbDownloadStatusMessage;
     private DateOnlyRange _dateRange = null!;
+    private readonly CancellationTokenSource _disposeCts = new();
+    private bool _isDisposed;
 
     public Dictionary<DateOnly, int>? Model { get; set; }
 
@@ -121,60 +119,81 @@ else
     {
         await base.OnAfterRenderAsync(firstRender);
 
-        if (firstRender)
-        {
-            await LoadAsync();
-            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
-        }
+        if (!firstRender)
+            return;
+
+        SyncService.OnSyncSucceeded += HandleSyncSucceeded;
+        await LoadAsync(_disposeCts.Token);
     }
 
     private async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        _isLoading = true;
-        await InvokeAsync(StateHasChanged);
-
-        _dateRange = new DateOnlyRange(
-            Start: DateOnly.FromDateTime(DateTime.Now.Date.AddYears(-1).AddDays(1)),
-            End: DateOnly.FromDateTime(DateTime.Now.Date));
-
         try
         {
-            _isDbNotImported = !await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
+            _isLoading = true;
+            await InvokeAsync(StateHasChanged);
 
-            if (_isDbNotImported)
+            _dateRange = new DateOnlyRange(
+                Start: DateOnly.FromDateTime(DateTime.Now.Date.AddYears(-1).AddDays(1)),
+                End: DateOnly.FromDateTime(DateTime.Now.Date));
+
+            DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
+            DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
+
+            _isDbImported = await IsDatabaseReadyAsync(cancellationToken);
+            await InvokeAsync(StateHasChanged);
+
+            if (!_isDbImported)
             {
-                Task _ = Task.Run(async () =>
-                {
-                    await DownloadDatabaseAsync();
-                    await LoadAsync();
-                });
-            }
-            else
-            {
-                DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime();
-                DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime();
-
-                await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
-                List<DateTime> reviewTimes = await dbContext.Reviews
-                    .Where(x => x.Time >= startTime && x.Time < endTime)
-                    .Select(x => x.Time)
-                    .ToListAsync();
-
-                Model = reviewTimes
-                    .GroupBy(utcTime =>
-                        DateOnly.FromDateTime(
-                            DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime()))
-                    .ToDictionary(g => g.Key, g => g.Count());
+                await DownloadDatabaseAsync(force: true, cancellationToken);
+                _isDbImported = true;
+                await InvokeAsync(StateHasChanged);
             }
 
+            await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+            List<DateTime> reviewTimes = await dbContext.Reviews
+                .Where(x => x.Time >= startTime && x.Time < endTime)
+                .Select(x => x.Time)
+                .ToListAsync();
+
+            Model = reviewTimes
+                .GroupBy(utcTime =>
+                    DateOnly.FromDateTime(
+                        DateTime.SpecifyKind(utcTime, DateTimeKind.Utc).ToLocalTime()))
+                .ToDictionary(g => g.Key, g => g.Count());
         }
-        catch (Exception)
+        finally
         {
-            throw;
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
+    }
 
-        _isLoading = false;
-        await InvokeAsync(StateHasChanged);
+    private async Task<bool> IsDatabaseReadyAsync(CancellationToken cancellationToken = default)
+    {
+        bool isDbExist = await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
+        Console.WriteLine($"IsDatabaseReadyAsync > isDbExist? {(isDbExist ? "true" : "false")}");
+        if (!isDbExist)
+            return false;
+
+        // Word table is exists?
+        // It may be removed by clearing the browser data.
+        await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+        await using DbConnection dbConnection = dbContext.Database.GetDbConnection();
+        await using DbCommand command = dbConnection.CreateCommand();
+
+        command.CommandText = $$"""
+            SELECT EXISTS (
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'Words'
+            );
+            """;
+
+        await dbConnection.OpenAsync(cancellationToken);
+        bool isTableExists = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken)) == 1;
+
+        return isTableExists;
     }
 
     private static string FormatBytes(long bytes)
@@ -190,15 +209,15 @@ else
         return $"{value:0.##} {units[unitIndex]}";
     }
 
-    private async Task OnDeleteDatabaseAsync()
+    private async Task OnDeleteDatabaseAsync(CancellationToken cancellationToken = default)
     {
-        bool isExists = await DbService.ExistsDatabaseAsync(DbName);
+        bool isExists = await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
         if (!isExists)
             return;
 
         await LocalStorage.SetItemAsync<DateTime>(JsStorageKeyForClearHistoryTime, DateTime.UtcNow);
-        await DbService.DeleteDatabaseAsync(DbName);
-        await LoadAsync();
+        await DbService.DeleteDatabaseAsync(DbName, cancellationToken);
+        await LoadAsync(cancellationToken);
     }
 
     private async Task DownloadDatabaseAsync(bool force = false, CancellationToken cancellationToken = default)
@@ -206,10 +225,12 @@ else
         _isDbDownloading = true;
         _dbDownloadProgress = 0;
         _dbDownloadStatusMessage = null;
+        await InvokeAsync(StateHasChanged);
 
         try
         {
             bool isExists = await DbService.ExistsDatabaseAsync(DbName, cancellationToken);
+
             if (isExists && !force)
                 return;
 
@@ -217,11 +238,10 @@ else
                 .GetRequiredSection("Application").Get<ApplicationSettings>()!;
 
             await using MemoryStream stream = new();
-
             Progress<(long BytesRead, long? TotalBytes)>? progressReporter = new(async info =>
             {
-                _dbDownloadProgress = info.TotalBytes.HasValue && info.TotalBytes.Value > 0
-                    ? info.BytesRead / info.TotalBytes.Value * 100d
+                _dbDownloadProgress = info.TotalBytes > 0
+                    ? info.BytesRead * 100d / info.TotalBytes.Value
                     : 0; // todo: handle unknown total bytes case
 
                 _dbDownloadStatusMessage = info.TotalBytes.HasValue
@@ -237,9 +257,6 @@ else
                 await DbService.DeleteDatabaseAsync(DbName, cancellationToken);
 
             stream.Position = 0;
-            byte[] bytes = stream.ToArray();
-            Console.WriteLine($"Downloaded {bytes.Length} bytes from {appSettings.DatabaseUrl}");
-
             await DbService.ImportDatabaseFromStreamAsync(DbName, stream, stream.Length, null, cancellationToken);
         }
         catch (Exception ex)
@@ -251,6 +268,7 @@ else
         {
             _isDbDownloading = false;
             _dbDownloadProgress = 0;
+            _dbDownloadStatusMessage = null;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -276,9 +294,9 @@ else
         if (totalBytes.HasValue)
             targetStream.SetLength((long)totalBytes);
 
-        await using Stream stream = await response.Content.ReadAsStreamAsync();
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
-        byte[] buffer = new byte[8 * 1024]; // 8KiB
+        byte[] buffer = new byte[64 * 1024]; // 64 KiB
         long totalBytesRead = 0;
         int bytesRead;
 
@@ -292,11 +310,19 @@ else
         }
     }
 
-    private Task HandleSyncSucceeded()
-            => LoadAsync();
+    private async Task HandleSyncSucceeded()
+    {
+        await InvokeAsync(async () =>
+        {
+            await LoadAsync(_disposeCts.Token);
+        });
+    }
 
     public void Dispose()
     {
+        _isDisposed = true;
         SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
     }
 }
