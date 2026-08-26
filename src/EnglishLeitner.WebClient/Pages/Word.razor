@@ -1,32 +1,19 @@
 @page "/words/{Slug}"
 
-@using DTOs
 @using EFDesign.Models;
-@using EnglishLeitner.EFDesign.Data
-@using EnglishLeitner.WebClient.Components
-@using EnglishLeitner.WebClient.Services
-@using Microsoft.EntityFrameworkCore
-@using WordModel = EFDesign.Models.Word
-
-@implements IDisposable
-
-@inject IJSRuntime JSRuntime
-@inject NavigationManager Nav
-@inject ISyncService SyncService
-@inject IDbContextFactory<ApplicationDbContext> DbFactory
 
 @if (_isLoading)
 {
     <PageTitle>English Leitner</PageTitle>
     <MudText>Loading...</MudText>
 }
-else if (Model is null)
+else if (_model is null)
 {
     <NotFound />
 }
 else
 {
-    <PageTitle>@Model.HeadWord | English Leitner</PageTitle>
+    <PageTitle>@_model.HeadWord | English Leitner</PageTitle>
 
     <div class="mt-2 d-flex justify-center">
         <MudPaper Width="750px" Style="max-width: 100%;">
@@ -45,7 +32,7 @@ else
                         <div class="d-flex flex-grow-1">
                             <div>
                                 <MudText Typo="Typo.h3" Style="text-transform: capitalize;">
-                                    @Model.HeadWord
+                                    @_model.HeadWord
                                 </MudText>
                                 <MudText Typo="Typo.body2">
                                     @foreach (string subtitle in _subtitleParts)
@@ -61,15 +48,15 @@ else
                                     {
                                         <MudText Typo="Typo.caption" Class="mx-2">•</MudText>
                                     }
-                                    <MudLink Typo="Typo.caption" Href="@Model.WebPage" Target="_blank"
+                                    <MudLink Typo="Typo.caption" Href="@_model.WebPage" Target="_blank"
                                              EndIcon="@Icons.Material.Filled.OpenInNew">Oxford</MudLink>
                                 </MudText>
                             </div>
                         </div>
                         <div class="d-flex align-content-center flex-wrap gap-0">
-                            @if (Model.Pronunciations?.Count > 0)
+                            @if (_model.Pronunciations?.Count > 0)
                             {
-                                IEnumerable<Pronunciation> pronunciations = Model.Pronunciations
+                                IEnumerable<Pronunciation> pronunciations = _model.Pronunciations
                                     .Where(x => x.Mp3Url is not null)
                                     .OrderBy(x => x.Culture == Culture.EnUK);
 
@@ -103,9 +90,9 @@ else
                             <MudText Typo="Typo.body2">
 
                                 <MudExpansionPanels MultiExpansion="true" Elevation="0">
-                                    @foreach (var group in Model.Meanings)
+                                    @foreach (var group in _model.Meanings)
                                     {
-                                        string? head = group.Head ?? Model.HeadWord!;
+                                        string? head = group.Head ?? _model.HeadWord!;
 
                                         <MudExpansionPanel Text="@head" Icon="@Icons.Material.Filled.MenuBook"
                                                            Expanded="true">
@@ -249,7 +236,7 @@ else
                 </MudCardContent>
                 <MudCardActions>
                     <MudStack Style="width: 100%;">
-                        @if (IsAnswerDisabled && Model.NextTryUTC is DateTime nextTryUtc)
+                        @if (IsAnswerDisabled && _model.NextTryUTC is DateTime nextTryUtc)
                         {
                             DateTime nextTryTime = DateTime.SpecifyKind(nextTryUtc, DateTimeKind.Utc).ToLocalTime();
                             <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
@@ -276,189 +263,4 @@ else
             </MudCard>
         </MudPaper>
     </div>
-}
-
-@code {
-    private bool _isLoading = true;
-
-    private DateOnlyRange _dateRange = default!;
-
-    private int _todayReviewsCount = default;
-
-    private string[] _subtitleParts = [];
-
-    private bool _isAnswerVisible = false;
-
-    private IJSObjectReference? _jsBundle;
-
-    private IJSObjectReference? _jsModule;
-
-    [Parameter]
-    public required string Slug { get; set; }
-
-    private WordModel? Model { get; set; }
-
-    private ICollection<ReviewCalendarItem>? ReviewItems
-    {
-        get
-        {
-            return Model?.Reviews?.Select(x => new ReviewCalendarItem()
-            {
-                Date = DateOnly.FromDateTime(DateTime.SpecifyKind(x.Time, DateTimeKind.Utc).ToLocalTime()),
-                CssClass = x.IsRemembered ? "mud-theme-success" : "mud-theme-error",
-                Tooltip = $"{(x.IsRemembered ? "Remembered" : "Forgotten")} on {x.Time:M}",
-            }).ToList();
-        }
-    }
-
-    private string ReviewCalendarTitle => ReviewItems?.Count switch
-    {
-        > 1 => $"{ReviewItems.Count} Reviews",
-        1 => "1 Review",
-        0 or _ => "No Review",
-    } + " in the last year";
-
-    private bool IsAnswerDisabled => Model?.NextTryUTC > DateTime.UtcNow;
-
-    public static string GetRoute(string slug)
-        => $"/words/{slug}";
-
-    protected override Task OnParametersSetAsync()
-        => LoadWordAsync();
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        await base.OnAfterRenderAsync(firstRender);
-
-        if (firstRender)
-        {
-            await LoadWordAsync();
-            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
-        }
-    }
-
-    private async Task LoadWordAsync()
-    {
-        _isLoading = true;
-        await InvokeAsync(StateHasChanged);
-
-        _dateRange = new DateOnlyRange(
-            Start: DateOnly.FromDateTime(DateTime.Today.AddYears(-1).AddDays(1)),
-            End: DateOnly.FromDateTime(DateTime.Today));
-
-        try
-        {
-            DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue).ToUniversalTime();
-            DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue).ToUniversalTime();
-
-            await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
-            Model = await dbContext.Words
-                .AsNoTracking()
-                .AsSplitQuery()
-                .Include(x => x.Pronunciations)
-                .Include(x => x.Meanings)
-                    .ThenInclude(x => x.Meanings)
-                    .ThenInclude(x => x.Examples)
-                .Include(x => x.Reviews.Where(review =>
-                    review.Time >= startTime &&
-                    review.Time < endTime))
-                .FirstOrDefaultAsync(x => x.Slug == Slug);
-
-            List<string> subtitleParts = [];
-            if (Model?.Cefr is Cefr cefr)
-                subtitleParts.Add(cefr.ToString());
-            if (!string.IsNullOrWhiteSpace(Model?.Position))
-                subtitleParts.Add(Model.Position.ToString());
-            if (!string.IsNullOrWhiteSpace(Model?.Grammar))
-                subtitleParts.Add(Model.Grammar.ToString());
-            _subtitleParts = subtitleParts.ToArray();
-
-            DateTime todayStartTime = DateTime.Today.ToUniversalTime();
-            DateTime tomorrowStartTime = DateTime.Today.AddDays(1).ToUniversalTime();
-            _todayReviewsCount = await dbContext.Reviews
-                .CountAsync(x =>
-                    x.Time >= todayStartTime &&
-                    x.Time < tomorrowStartTime);
-
-            _jsBundle = await JSRuntime.InvokeAsync<IJSObjectReference>(
-                "import", "./scripts/js/app.bundle.js");
-
-            _jsModule = await _jsBundle.InvokeConstructorAsync("Word");
-        }
-        catch
-        {
-
-        }
-
-        _isLoading = false;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task OnForgetAsync()
-        => await OnTryAsync(false);
-
-    private async Task OnRememberAsync()
-        => await OnTryAsync(true);
-
-    private void ToggleAnswerDisplay()
-        => _isAnswerVisible = !_isAnswerVisible;
-
-    private async Task PlayAudioAsync(string url)
-    {
-        if (_jsModule is not null)
-            await _jsModule.InvokeVoidAsync("play", url);
-    }
-
-    private void GoBackHome()
-    {
-        string url = Home.GetRoute();
-        Nav.NavigateTo(url, replace: false);
-    }
-
-    private void NavigateToRandomCard()
-    {
-        string url = RandomWord.GetRoute();
-        Nav.NavigateTo(url, replace: false);
-    }
-
-    private async Task OnTryAsync(bool isRemember)
-    {
-        if (Model is null)
-            return;
-
-        Review review = new()
-        {
-            WordId = Model.Id,
-            IsRemembered = isRemember,
-            Time = DateTime.UtcNow,
-        };
-
-        if (isRemember)
-        {
-            const int MaxLevel = 5;
-            Model.LeitnerLevel = Model.LeitnerLevel < MaxLevel
-                ? Model.LeitnerLevel + 1
-                : MaxLevel;
-        }
-        else
-            Model.LeitnerLevel = 0;
-
-        int nextDays = (int)Math.Pow(2, Model.LeitnerLevel);
-        Model.NextTryUTC = DateTime.UtcNow.AddDays(nextDays);
-
-        await using ApplicationDbContext? dbContext = await DbFactory.CreateDbContextAsync();
-        await dbContext.Reviews.AddAsync(review);
-        dbContext.Words.Update(Model);
-        await dbContext.SaveChangesAsync();
-
-        NavigateToRandomCard();
-    }
-
-    private Task HandleSyncSucceeded()
-        => LoadWordAsync();
-
-    public void Dispose()
-    {
-        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
-    }
 }

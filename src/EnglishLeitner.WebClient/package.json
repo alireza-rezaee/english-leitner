@@ -16,6 +16,7 @@
     "@types/google.accounts": "^0.0.18",
     "@types/node": "^26.2.0",
     "esbuild": "^0.28.2",
+    "eslint": "^10.9.1",
     "googleapis": "^174.0.1",
     "typescript": "^7.0.2"
   }
