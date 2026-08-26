@@ -39,9 +39,6 @@
 
 @code {
     private SyncStatus _syncStatus = SyncStatus.Normal;
-    private IJSObjectReference? _jsBundle;
-    private IJSObjectReference? _jsModule;
-    private DotNetObjectReference<DriveSyncButton>? _dotnetRef;
 
     private string SyncIcon => _syncStatus switch
     {

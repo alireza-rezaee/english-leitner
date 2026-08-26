@@ -43,9 +43,7 @@ else if (_isDbNotImported)
                            Class="my-7">
             <MudText Typo="Typo.subtitle1" Color="Color.Default">
                 <b>@_dbDownloadProgress.ToString("0.0")%</b>
-                <MudText Typo="Typo.caption" Color="Color.Default">
-                    (@FormatBytes(_receivedBytes)/@FormatBytes(_totalBytes))
-                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Default">@_dbDownloadStatusMessage</MudText>
             </MudText>
         </MudProgressLinear>
     }
@@ -68,21 +66,21 @@ else
     <WordsTable DateRange="_dateRange" />
 
     <div class="d-flex justify-center flex-grow-1 gap-4 my-4">
-        <MudButton OnClick="OnDeleteDatabaseAsync" StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">Clean
-            History</MudButton>
-        </div>
-    }
+        <MudButton OnClick="OnDeleteDatabaseAsync" StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">
+            Clean
+            History
+        </MudButton>
+    </div>
+}
 
 
 @code {
     const string DbName = "app.db";
-
     private bool _isLoading = true;
     private bool _isDbNotImported = false;
     private bool _isDbDownloading = false;
     private double _dbDownloadProgress = 0;
-    private long _totalBytes = 0;
-    private long _receivedBytes = 0;
+    private string? _dbDownloadStatusMessage;
     private DateOnlyRange _dateRange = null!;
 
     public Dictionary<DateOnly, int>? Model { get; set; }
@@ -207,7 +205,7 @@ else
     {
         _isDbDownloading = true;
         _dbDownloadProgress = 0;
-        await InvokeAsync(StateHasChanged);
+        _dbDownloadStatusMessage = null;
 
         try
         {
@@ -218,44 +216,31 @@ else
             ApplicationSettings appSettings = Configuration
                 .GetRequiredSection("Application").Get<ApplicationSettings>()!;
 
-            using HttpClient httpClient = HttpClientFactory.CreateClient("Application");
-            using HttpRequestMessage request = new(HttpMethod.Get, appSettings.DatabaseUrl);
-            using HttpResponseMessage response = await httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+            await using MemoryStream stream = new();
 
-            response.EnsureSuccessStatusCode();
-
-            _totalBytes = response.Content.Headers.ContentLength ?? 0;
-
-            await using Stream fileStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            await using MemoryStream memoryStream = new();
-
-            byte[] buffer = new byte[64 * 1024]; // 64KB
-            int count;
-            _receivedBytes = 0;
-
-            while ((count = await fileStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+            Progress<(long BytesRead, long? TotalBytes)>? progressReporter = new(async info =>
             {
-                await memoryStream.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+                _dbDownloadProgress = info.TotalBytes.HasValue && info.TotalBytes.Value > 0
+                    ? info.BytesRead / info.TotalBytes.Value * 100d
+                    : 0; // todo: handle unknown total bytes case
 
-                _receivedBytes += count;
-
-                if (_totalBytes > 0)
-                    _dbDownloadProgress = (_receivedBytes * 100d) / _totalBytes;
+                _dbDownloadStatusMessage = info.TotalBytes.HasValue
+                    ? $"({FormatBytes(info.BytesRead)}/{FormatBytes((long)info.TotalBytes)})"
+                    : "downloading...";
 
                 await InvokeAsync(StateHasChanged);
-            }
+            });
 
-            _dbDownloadProgress = 100;
-            await InvokeAsync(StateHasChanged);
+            await DownloadToStreamAsync(stream, appSettings.DatabaseUrl, progressReporter, cancellationToken);
 
             if (isExists)
                 await DbService.DeleteDatabaseAsync(DbName, cancellationToken);
 
-            memoryStream.Position = 0;
-            await DbService.ImportDatabaseFromStreamAsync(DbName, memoryStream, _totalBytes, null, cancellationToken);
+            stream.Position = 0;
+            byte[] bytes = stream.ToArray();
+            Console.WriteLine($"Downloaded {bytes.Length} bytes from {appSettings.DatabaseUrl}");
+
+            await DbService.ImportDatabaseFromStreamAsync(DbName, stream, stream.Length, null, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -265,8 +250,45 @@ else
         finally
         {
             _isDbDownloading = false;
-            _dbDownloadProgress = default;
+            _dbDownloadProgress = 0;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task DownloadToStreamAsync(
+        Stream targetStream,
+        string url,
+        IProgress<(long BytesRead, long? TotalBytes)>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        using HttpClient httpClient = HttpClientFactory.CreateClient("Application");
+        using HttpRequestMessage request = new(HttpMethod.Get, url);
+        request.SetBrowserResponseStreamingEnabled(true);
+
+        using HttpResponseMessage response = await httpClient.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        long? totalBytes = response.Content.Headers.ContentLength;
+        if (totalBytes.HasValue)
+            targetStream.SetLength((long)totalBytes);
+
+        await using Stream stream = await response.Content.ReadAsStreamAsync();
+
+        byte[] buffer = new byte[8 * 1024]; // 8KiB
+        long totalBytesRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        {
+            await targetStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            totalBytesRead += bytesRead;
+
+            if (progress is not null)
+                progress.Report((totalBytesRead, totalBytes));
         }
     }
 

@@ -16,10 +16,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
     env:
       DOTNET_NOLOGO: true
       PROJECT_PATH: "./src/EnglishLeitner.WebClient"
@@ -75,25 +71,22 @@ jobs:
           curl -L -o data/app.db "https://github.com/alireza-rezaee/english-leitner/releases/download/0.9.0-alpha.1/app.db"
         working-directory: ${{ env.PROJECT_PATH }}/wwwroot
 
-      - name: Set base-tag in index.html for GitHub Pages
-        run: sed -i 's/<base href="\/" \/>/<base href="\/${{ github.event.repository.name }}\/" \/>/g' index.html
-        working-directory: ${{ env.PROJECT_PATH }}/wwwroot
-
       - name: Publish .NET Project
         run: dotnet publish EnglishLeitner.WebClient.csproj -c Release -o release --nologo
         working-directory: ${{ env.PROJECT_PATH }}
 
-      - name: Add .nojekyll and 404.html file
-        run: |
-          touch .nojekyll
-          cp index.html 404.html
+      - name: Add error.html file
+        run: cp index.html error.html
         working-directory: ${{ env.PROJECT_PATH }}/release/wwwroot
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: ${{ env.PROJECT_PATH }}/release/wwwroot
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Upload to ArvanCloud Object Storage
+        env: 
+          AWS_ACCESS_KEY_ID: ${{ secrets.ARVAN_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.ARVAN_SECRET_KEY }}
+          ARVAN_BUCKET: ${{ secrets.ARVAN_BUCKET }}
+          AWS_DEFAULT_REGION: default
+        run: |
+          aws s3 sync ${{ env.PROJECT_PATH }}/release/wwwroot s3://${{ env.ARVAN_BUCKET }} \
+            --endpoint-url "https://s3.ir-thr-at1.arvanstorage.ir" \
+            --delete \
+            --exact-timestamps
