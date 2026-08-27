@@ -1,3 +1,4 @@
+@using EnglishLeitner.WebClient.Pages
 @inherits LayoutComponentBase
 
 <MudThemeProvider Theme="@_theme" IsDarkMode="_isDarkMode" />
@@ -5,11 +6,17 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>
+<MudLayout Class="d-flex flex-column" Style="min-height: 100vh;">
     <MudAppBar Elevation="1">
-        <MudLink Href="/" Typo="Typo.body2" Underline="Underline.None" Color="Color.Default" Class="d-inline-flex align-center">
+        <MudLink Href="/" Typo="Typo.body2" Underline="Underline.None" Color="Color.Default"
+                 Class="d-inline-flex align-center">
             <MudImage Src="icon-32.png" Alt="English Leitner Logo" />
-            <MudText Inline="true" Class="ml-2"><strong><abbr title="English">Eng.</abbr> Leitner</strong></MudText>
+            <MudText Inline="true" Class="ml-2">
+                <strong>
+                    <abbr title="English">Eng.</abbr>
+                    Leitner
+                </strong>
+            </MudText>
         </MudLink>
         <MudSpacer />
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggleAsync" />
@@ -34,7 +41,52 @@
                         StartIcon="@Icons.Material.Outlined.Info" Size="Size.Medium" /> *@
     </MudAppBar>
 
-    <MudMainContent Class="pt-16 pa-4">
+    <MudMainContent Class="pt-16 pa-4 flex-grow-1">
         @Body
     </MudMainContent>
+
+    <footer class="pa-4 mt-auto"
+            style="background-color: var(--mud-palette-background); border-top: 1px solid var(--mud-palette-divider);">
+        <MudContainer MaxWidth="MaxWidth.Large">
+            <MudStack Row="true" Spacing="4" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween"
+                      Class="flex-column-reverse flex-md-row">
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    © @DateTime.Now.Year English Leitner. All rights reserved.
+                </MudText>
+
+                <div class="d-flex flex-column flex-md-row align-center justify-center" style="gap: 12px;">
+
+                    <MudLink Href="@Terms.GetRoute()" Typo="Typo.caption" Color="Color.Inherit"
+                             Underline="Underline.Hover">
+                        Terms of Service
+                    </MudLink>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-md-block">|</MudText>
+
+                    <MudLink Href="@Privacy.GetRoute()" Typo="Typo.caption" Color="Color.Inherit"
+                             Underline="Underline.Hover">
+                        Privacy Policy
+                    </MudLink>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-md-block">|</MudText>
+
+                    <MudLink Href="https://github.com/alireza-rezaee/english-leitner" Typo="Typo.caption"
+                             Color="Color.Inherit" Underline="Underline.Hover" Class="d-inline-flex align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Favorite" Color="Color.Secondary" Size="Size.Small" />
+                        <MudText Typo="Typo.caption" Class="ms-1">Open Source</MudText>
+                    </MudLink>
+
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-none d-md-block">|</MudText>
+
+                    <MudLink Href="https://github.com/alireza-rezaee/english-leitner/issues" Typo="Typo.caption"
+                             Color="Color.Inherit" Underline="Underline.Hover">
+                        Feedback
+                    </MudLink>
+                </div>
+
+            </MudStack>
+        </MudContainer>
+    </footer>
+
 </MudLayout>

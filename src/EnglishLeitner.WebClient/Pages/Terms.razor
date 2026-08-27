@@ -1,0 +1,125 @@
+@page "/terms"
+
+@using EnglishLeitner.WebClient.Pages.Management
+
+<PageTitle>Terms of Service • English Leitner</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8 mb-8">
+    <MudPaper Elevation="4" Class="pa-8" Style="border-radius: 16px;">
+
+        @* Header Section *@
+        <MudText Typo="Typo.h3" GutterBottom="true" Color="Color.Primary">Terms of Service</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-6">
+            <strong>Effective Date:</strong> August 27, 2026 | <strong>Last Updated:</strong> August 27, 2026
+        </MudText>
+
+        <MudDivider Class="mb-6" />
+
+        @* Main Content *@
+        <div style="text-align: justify; line-height: 1.6;">
+
+            <MudText Typo="Typo.body1" Class="mb-6">
+                Welcome to <b>English Leitner</b> (“the Software,” “we,” “us,” or “our”). These Terms of Service
+                (“Terms”) constitute a legally binding agreement between you (the “User”) and the developers of English
+                Leitner regarding your access to and use of the mobile application, website, and any associated services
+                (collectively, the “Service”).
+            </MudText>
+
+            <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-6" Dense="true">
+                By accessing or using the Service, you acknowledge that you have read, understood, and agree to be bound
+                by these Terms.
+            </MudAlert>
+
+            @* Section 1 *@
+            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+                1. Nature of the Service (Open-Source & Serverless)
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">
+                English Leitner is provided as an <b>Open-Source</b> learning application designed to facilitate the
+                creation, organization, and management of flashcards via a Leitner-style learning system.
+                <br /><br />
+                <b>The Service operates on a "Serverless" architecture.</b> This means that the Software functions
+                primarily on the User’s local device. We do not host, manage, or maintain centralized proprietary
+                servers for the purpose of storing, processing, or monitoring your personal learning data. Consequently,
+                the Service is not subject to centralized server-side downtime or outages.
+            </MudText>
+
+            @* Section 2 *@
+            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+                2. User Obligations and Prohibited Conduct
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">
+                The User agrees to utilize the Service in compliance with all applicable laws. The User expressly agrees
+                <b>not</b> to:
+            </MudText>
+            <MudList T="string" Dense="true" Class="mb-4">
+                <MudListItem Icon="@Icons.Material.Filled.ErrorOutline">
+                    Utilize the Service for unlawful or malicious purposes.
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.ErrorOutline">
+                    Attempt to reverse engineer or compromise the Software integrity.
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.ErrorOutline">
+                    Infringe upon third-party intellectual property rights.
+                </MudListItem>
+                <MudListItem Icon="@Icons.Material.Filled.ErrorOutline">
+                    Misrepresent identity or affiliation.
+                </MudListItem>
+            </MudList>
+
+            @* Section 3 *@
+            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+                3. Local Data Storage and User Responsibility
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">
+                All User data is <b>stored locally on the User's device.</b> We do not possess, store, or have access to
+                your learning data on any central servers.
+                <br /><br />
+                <b>Data Loss Risk:</b> Because we do not store your data, we cannot recover it in the event of device
+                failure, accidental deletion, or software reset. It is the User’s sole responsibility to maintain
+                adequate backups.
+            </MudText>
+
+            <MudButton Href="@Data.GetRoute()" Variant="Variant.Outlined" Color="Color.Error"
+                   StartIcon="@Icons.Material.Outlined.DeleteForever" FullWidth="true" Class="mb-4">
+                Manage or Delete My Data
+            </MudButton>
+
+            @* Section 4 & 5 (Simplified for brevity in example) *@
+            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+                4. Intellectual Property
+            </MudText>
+            <MudText Typo="Typo.body2" Class="mb-4">
+                All rights, titles, and interests in the Service are owned by the developers. Any open-source components
+                are subject to their respective licenses. In the event of conflict, the <b>Open-Source License shall
+                prevail.</b>
+            </MudText>
+
+            @* Disclaimer Section *@
+            <MudPaper Class="pa-4 mt-8" Style="background-color: #f8f9fa; border-left: 5px solid #d32f2f;">
+                <MudText Typo="Typo.subtitle1" Color="Color.Error" Style="font-weight: bold;">
+                    Disclaimer of Warranties & Limitation of Liability
+                </MudText>
+                <MudText Typo="Typo.caption" Style="display: block; text-align: justify;">
+                    THE SERVICE IS PROVIDED "AS IS" WITHOUT ANY WARRANTIES. TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE
+                    DEVELOPERS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING
+                    LOSS OF DATA OR PROFITS.
+                </MudText>
+            </MudPaper>
+
+            <MudDivider Class="my-6" />
+
+            @* Contact Section *@
+            <MudStack Spacing="1" Class="mt-8 mb-4">
+                <MudText Typo="Typo.h6">Contact Us</MudText>
+                <MudText Typo="Typo.body2">GitHub Issues:
+                    <MudLink Href="https://github.com/alireza-rezaee/english-leitner/issues" Typo="Typo.caption"
+                             Color="Color.Inherit" Underline="Underline.Hover">
+                        <strong>https://github.com/alireza-rezaee/english-leitner/issues</strong>
+                    </MudLink>
+                </MudText>
+            </MudStack>
+
+        </div>
+    </MudPaper>
+</MudContainer>

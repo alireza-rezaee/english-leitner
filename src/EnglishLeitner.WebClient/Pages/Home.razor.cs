@@ -4,11 +4,10 @@ using EnglishLeitner.WebClient.Services;
 using EnglishLeitner.WebClient.Settings;
 using Microsoft.AspNetCore.Components.WebAssembly.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.JSInterop;
 using MudBlazor;
 using SqliteWasmBlazor;
 using System.Data.Common;
-using static EnglishLeitner.WebClient.Services.DriveSyncService;
+using static EnglishLeitner.WebClient.Pages.Management.Data;
 
 namespace EnglishLeitner.WebClient.Pages;
 
@@ -16,12 +15,10 @@ public partial class Home(
     ISnackbar snackbar,
     ISyncService syncService,
     IConfiguration configuration,
-    ILocalStorageService localStorage,
     IHttpClientFactory httpClientFactory,
     ISqliteWasmDatabaseService dbService,
     IDbContextFactory<ApplicationDbContext> dbFactory) : IDisposable
 {
-    const string DbName = "app.db";
     private readonly CancellationTokenSource _disposeCts = new();
     private bool _isLoading = true;
     private bool _isDbImported = true;
@@ -152,17 +149,6 @@ public partial class Home(
         var value = bytes / Math.Pow(1024, unitIndex);
 
         return $"{value:0.##} {units[unitIndex]}";
-    }
-
-    private async Task OnDeleteDatabaseAsync(CancellationToken cancellationToken = default)
-    {
-        bool isExists = await dbService.ExistsDatabaseAsync(DbName, cancellationToken);
-        if (!isExists)
-            return;
-
-        await localStorage.SetItemAsync(JsStorageKeyForClearHistoryTime, DateTime.UtcNow);
-        await dbService.DeleteDatabaseAsync(DbName, cancellationToken);
-        await LoadAsync(cancellationToken);
     }
 
     private async Task DownloadDatabaseAsync(bool force = false, CancellationToken cancellationToken = default)

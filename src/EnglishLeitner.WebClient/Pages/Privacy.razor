@@ -1,0 +1,122 @@
+@page "/privacy-policy"
+
+@using EnglishLeitner.WebClient.Pages.Management
+
+<PageTitle>Privacy Policy • English Leitner</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-10 mb-10">
+    <MudPaper Elevation="0" Class="pa-8">
+
+        <MudText Typo="Typo.h3" GutterBottom="true" Color="Color.Primary">Privacy Policy</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mb-6">
+            <strong>Effective Date:</strong> August 27, 2026 | <strong>Last Updated:</strong> August 27, 2026
+        </MudText>
+
+        <MudDivider Class="mb-6" />
+
+        <MudText Typo="Typo.body1" Class="mb-6">
+            Welcome to <strong>English Leitner</strong> ("we," "our," or "us"). We are strongly committed to protecting
+            your privacy and ensuring you have complete control over your personal data. This Privacy Policy outlines
+            how your information is handled when you use the English Leitner mobile application and its associated
+            website.
+        </MudText>
+
+        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+            1. Zero-Server Architecture & Local Data Storage
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            English Leitner is designed with a <strong>privacy-first, serverless architecture</strong>.
+        </MudText>
+        <MudList T="string" Class="mb-4">
+            <MudListItem Icon="@Icons.Material.Filled.SdStorage">
+                <strong>Local Storage:</strong> All application data, learning progress, flashcards, user preferences,
+                and essential operational assets are stored locally and exclusively on your personal device.
+            </MudListItem>
+            <MudListItem Icon="@Icons.Material.Filled.Security">
+                <strong>No Data Collection:</strong> We do not operate proprietary backend servers to host, process, or
+                monitor your personal data. Consequently, we do not collect, store, transmit, or sell any of your
+                personal information to any third parties.
+            </MudListItem>
+        </MudList>
+
+        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+            2. Optional Third-Party Cloud Services (Sync & Backup)
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            To enhance your user experience and facilitate seamless data backup or multi-device synchronization, the
+            Application provides an <strong>optional</strong> feature that allows you to connect with external
+            third-party cloud storage providers (such as Google Drive).
+        </MudText>
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            <strong>User Discretion:</strong> The use of third-party cloud integration is entirely optional and disabled
+            by default until explicitly authorized by you.
+        </MudAlert>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            If you choose to enable cloud backup or synchronization, your data transfers and storage will be handled
+            directly through the chosen provider's platform. By utilizing these features, you acknowledge and agree that
+            your data is subject to the respective third party’s Terms of Service and Privacy Policy. We do not own,
+            manage, or assume liability for the data practices of these independent services.
+        </MudText>
+
+        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+            3. Data Management, Reset, and Deletion
+        </MudText>
+        <MudText Class="mb-4">
+            You maintain full authority over the data generated within the Application. At any time, you may perform the
+            following actions:
+        </MudText>
+        <MudList T="string" Class="mb-4">
+            <MudListItem Icon="@Icons.Material.Filled.Delete">
+                <strong>Local Data Deletion:</strong> You can clear all locally stored data and reset the application to
+                its original state through the application settings.
+            </MudListItem>
+            <MudListItem Icon="@Icons.Material.Filled.CloudOff">
+                <strong>Cloud Data Removal:</strong> If you have utilized third-party cloud services for
+                synchronization, you are responsible for managing and deleting those synchronized files directly through
+                your cloud provider (e.g., deleting files from your Google Drive).
+            </MudListItem>
+            <MudListItem Icon="@Icons.Material.Filled.RestartAlt">
+                <strong>Application Reset:</strong> Resetting the application will permanently remove all learning
+                progress and custom content from your device. Please note that this action is irreversible.
+            </MudListItem>
+        </MudList>
+
+        <MudButton Href="@Data.GetRoute()" Variant="Variant.Outlined" Color="Color.Error"
+                   StartIcon="@Icons.Material.Outlined.DeleteForever" FullWidth="true" Class="mb-4">
+            Manage or Delete My Data
+        </MudButton>
+
+        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+            4. Permissions
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            The Application may request certain device permissions necessary strictly for core functionality (e.g.,
+            local storage read/write access). We do not use these permissions to track you or harvest private
+            information.
+        </MudText>
+
+        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mt-6 mb-2">
+            5. Changes to This Privacy Policy
+        </MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            We reserve the right to update or modify this Privacy Policy from time to time. Any modifications will be
+            posted on this page with an updated "Last Updated" date. Continued use of the Application following any
+            updates constitutes your acceptance of the revised policy.
+        </MudText>
+
+        <MudDivider Class="my-6" />
+
+        <MudStack Spacing="1" Class="mt-8 mb-4">
+            <MudText Typo="Typo.h6">Contact Us</MudText>
+            <MudText Typo="Typo.body2">GitHub Issues:
+                <strong>
+                    <MudLink Href="https://github.com/alireza-rezaee/english-leitner/issues" Typo="Typo.caption"
+                             Color="Color.Inherit" Underline="Underline.Hover">
+                        https://github.com/alireza-rezaee/english-leitner/issues
+                    </MudLink>
+                </strong>
+            </MudText>
+        </MudStack>
+
+    </MudPaper>
+</MudContainer>

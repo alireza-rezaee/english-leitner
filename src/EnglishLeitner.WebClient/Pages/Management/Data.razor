@@ -1,0 +1,10 @@
+@page "/management/data"
+
+<PageTitle>Data Management • English Leitner</PageTitle>
+
+<div class="d-flex justify-center flex-grow-1 gap-4 my-4">
+    <MudButton OnClick="@(async () => await OnDeleteDatabaseAsync(_disposeCts.Token))"
+               StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">
+        Clean History
+    </MudButton>
+</div>
