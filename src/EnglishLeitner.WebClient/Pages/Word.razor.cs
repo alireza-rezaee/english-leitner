@@ -1,10 +1,12 @@
 using EnglishLeitner.EFDesign.Data;
 using EnglishLeitner.EFDesign.Models;
 using EnglishLeitner.WebClient.DTOs;
+using EnglishLeitner.WebClient.Pages.Management;
 using EnglishLeitner.WebClient.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
+using SqliteWasmBlazor;
 using WordModel = EnglishLeitner.EFDesign.Models.Word;
 
 namespace EnglishLeitner.WebClient.Pages;
@@ -13,8 +15,10 @@ public partial class Word(
     IJSRuntime jsRuntime,
     NavigationManager nav,
     ISyncService syncService,
+    ISqliteWasmDatabaseService dbService,
     IDbContextFactory<ApplicationDbContext> dbFactory) : IDisposable
 {
+    private readonly CancellationTokenSource _disposeCts = new();
     private bool _isLoading = true;
     private DateOnlyRange _dateRange = default!;
     private int _todayReviewsCount = default;
@@ -53,7 +57,7 @@ public partial class Word(
         => $"/words/{slug}";
 
     protected override Task OnParametersSetAsync()
-        => LoadWordAsync();
+        => LoadWordAsync(_disposeCts.Token);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -61,12 +65,12 @@ public partial class Word(
 
         if (firstRender)
         {
-            await LoadWordAsync();
+            await LoadWordAsync(_disposeCts.Token);
             syncService.OnSyncSucceeded += HandleSyncSucceeded;
         }
     }
 
-    private async Task LoadWordAsync()
+    private async Task LoadWordAsync(CancellationToken cancellationToken = default)
     {
         _isLoading = true;
         await InvokeAsync(StateHasChanged);
@@ -80,7 +84,14 @@ public partial class Word(
             DateTime startTime = _dateRange.Start.ToDateTime(TimeOnly.MinValue).ToUniversalTime();
             DateTime endTime = _dateRange.End.ToDateTime(TimeOnly.MaxValue).ToUniversalTime();
 
-            await using ApplicationDbContext dbContext = await dbFactory.CreateDbContextAsync();
+            bool isDbInit = await Data.IsDatabaseInitializedAsync(dbService, dbFactory, cancellationToken);
+            if (!isDbInit)
+            {
+                nav.NavigateTo(Data.GetRoute(nav.Uri));
+                return;
+            }
+
+            await using ApplicationDbContext dbContext = await dbFactory.CreateDbContextAsync(cancellationToken);
             _model = await dbContext.Words
                 .AsNoTracking()
                 .AsSplitQuery()
@@ -91,7 +102,7 @@ public partial class Word(
                 .Include(x => x.Reviews.Where(review =>
                     review.Time >= startTime &&
                     review.Time < endTime))
-                .FirstOrDefaultAsync(x => x.Slug == Slug);
+                .FirstOrDefaultAsync(x => x.Slug == Slug, cancellationToken: cancellationToken);
 
             List<string> subtitleParts = [];
             if (_model?.Cefr is Cefr cefr)
@@ -100,42 +111,40 @@ public partial class Word(
                 subtitleParts.Add(_model.Position.ToString());
             if (!string.IsNullOrWhiteSpace(_model?.Grammar))
                 subtitleParts.Add(_model.Grammar.ToString());
-            _subtitleParts = subtitleParts.ToArray();
+            _subtitleParts = [.. subtitleParts];
 
             DateTime todayStartTime = DateTime.Today.ToUniversalTime();
             DateTime tomorrowStartTime = DateTime.Today.AddDays(1).ToUniversalTime();
             _todayReviewsCount = await dbContext.Reviews
                 .CountAsync(x =>
                     x.Time >= todayStartTime &&
-                    x.Time < tomorrowStartTime);
+                    x.Time < tomorrowStartTime, cancellationToken: cancellationToken);
 
             _jsBundle = await jsRuntime.InvokeAsync<IJSObjectReference>(
                 "import", "./scripts/js/app.bundle.js");
 
             _jsModule = await _jsBundle.InvokeConstructorAsync("Word");
         }
-        catch
+        finally
         {
-
+            _isLoading = false;
+            await InvokeAsync(StateHasChanged);
         }
-
-        _isLoading = false;
-        await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnForgetAsync()
-        => await OnTryAsync(false);
+    private async Task OnForgetAsync(CancellationToken cancellationToken = default)
+        => await OnTryAsync(false, cancellationToken);
 
-    private async Task OnRememberAsync()
-        => await OnTryAsync(true);
+    private async Task OnRememberAsync(CancellationToken cancellationToken = default)
+        => await OnTryAsync(true, cancellationToken);
 
     private void ToggleAnswerDisplay()
         => _isAnswerVisible = !_isAnswerVisible;
 
-    private async Task PlayAudioAsync(string url)
+    private async Task PlayAudioAsync(string url, CancellationToken cancellationToken = default)
     {
         if (_jsModule is not null)
-            await _jsModule.InvokeVoidAsync("play", url);
+            await _jsModule.InvokeVoidAsync("play", cancellationToken: cancellationToken, url);
     }
 
     private void GoBackHome()
@@ -150,7 +159,7 @@ public partial class Word(
         nav.NavigateTo(url, replace: false);
     }
 
-    private async Task OnTryAsync(bool isRemember)
+    private async Task OnTryAsync(bool isRemember, CancellationToken cancellationToken = default)
     {
         if (_model is null)
             return;
@@ -175,19 +184,21 @@ public partial class Word(
         int nextDays = (int)Math.Pow(2, _model.LeitnerLevel);
         _model.NextTryUTC = DateTime.UtcNow.AddDays(nextDays);
 
-        await using ApplicationDbContext? dbContext = await dbFactory.CreateDbContextAsync();
-        await dbContext.Reviews.AddAsync(review);
+        await using ApplicationDbContext? dbContext = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await dbContext.Reviews.AddAsync(review, cancellationToken);
         dbContext.Words.Update(_model);
-        await dbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         NavigateToRandomCard();
     }
 
     private Task HandleSyncSucceeded()
-        => LoadWordAsync();
+        => LoadWordAsync(_disposeCts.Token);
 
     public void Dispose()
     {
         syncService.OnSyncSucceeded -= HandleSyncSucceeded;
+        _disposeCts.Cancel();
+        _disposeCts.Dispose();
     }
 }

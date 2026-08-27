@@ -71,7 +71,7 @@ else
                                                   Class="mt-3 me-4 mb-2 ms-1">
                                             <MudFab Color="color" StartIcon="@Icons.Material.Outlined.RecordVoiceOver"
                                                     Size="Size.Small"
-                                                    onclick="@(async () => await PlayAudioAsync(pronunciation.Mp3Url!))" />
+                                                    onclick="@(async () => await PlayAudioAsync(pronunciation.Mp3Url!, _disposeCts.Token))" />
                                         </MudBadge>
                                     </MudTooltip>
                                 }
@@ -245,7 +245,7 @@ else
                             </MudAlert>
                         }
                         <MudButtonGroup FullWidth="true" OverrideStyles="false" Variant="Variant.Filled">
-                            <MudButton Color="Color.Error" OnClick="@OnForgetAsync" Disabled="@IsAnswerDisabled"
+                            <MudButton Color="Color.Error" OnClick="@(async () => await OnForgetAsync(_disposeCts.Token))" Disabled="@IsAnswerDisabled"
                                        StartIcon="@Icons.Material.Filled.Close">
                                 Forget
                             </MudButton>
@@ -253,7 +253,7 @@ else
                                        StartIcon="@(_isAnswerVisible ? @Icons.Material.Filled.VisibilityOff : @Icons.Material.Filled.Visibility)">
                                 Answer
                             </MudButton>
-                            <MudButton Color="Color.Success" OnClick="@OnRememberAsync" Disabled="@IsAnswerDisabled"
+                            <MudButton Color="Color.Success" OnClick="@(async() => await OnRememberAsync(_disposeCts.Token))" Disabled="@IsAnswerDisabled"
                                        StartIcon="@Icons.Material.Filled.Check">
                                 Remember
                             </MudButton>

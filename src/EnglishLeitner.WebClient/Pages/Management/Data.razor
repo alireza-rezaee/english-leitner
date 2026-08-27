@@ -2,9 +2,191 @@
 
 <PageTitle>Data Management • English Leitner</PageTitle>
 
-<div class="d-flex justify-center flex-grow-1 gap-4 my-4">
-    <MudButton OnClick="@(async () => await OnDeleteDatabaseAsync(_disposeCts.Token))"
-               StartIcon="@Icons.Material.Outlined.Delete" Size="Size.Small">
-        Clean History
-    </MudButton>
-</div>
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-10 mb-10">
+    <MudPaper Elevation="0" Class="pa-8">
+
+        <MudText Typo="Typo.h3" GutterBottom="true" Color="Color.Primary">
+            Data Management
+        </MudText>
+
+        <MudDivider Class="mb-6" />
+
+        <MudText Typo="Typo.body1" Class="mb-6">
+            Manage the data stored on this device. You can download the initial data set from
+            the cloud, reset local data with a fresh cloud copy, or permanently delete all data.
+        </MudText>
+
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-6">
+            Resetting or deleting data permanently removes locally stored information.
+            Please make sure you understand the selected action before continuing.
+        </MudAlert>
+
+        @if (_isLoading)
+        {
+            <MudPaper Outlined="true" Class="pa-5 mb-4">
+                <MudStack AlignItems="AlignItems.Center" Spacing="2">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+
+                    <MudText Typo="Typo.body1">
+                        Data operation in progress...
+                    </MudText>
+
+                    <MudText Typo="Typo.body2">
+                        Please do not close or refresh this page.
+                    </MudText>
+                </MudStack>
+            </MudPaper>
+        }
+
+        <!-- Download Initial Data -->
+        <MudPaper Outlined="true" Class="pa-5 mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.CloudDownload" Color="Color.Primary" Size="Size.Large" />
+
+                <MudStack Spacing="1" Class="flex-grow-1">
+                    <MudText Typo="Typo.h6">
+                        Download Initial Data
+                    </MudText>
+
+                    <MudText Typo="Typo.body2">
+                        Download the initial data set from the cloud.
+                    </MudText>
+                </MudStack>
+            </MudStack>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudDownload"
+                       FullWidth="true" Disabled="@(_isLoading || _isDbInit)" OnClick="@OnDownloadDatabaseClick">
+                Download Data
+            </MudButton>
+
+            @if (_isDbDownloading)
+            {
+                <MudProgressLinear Color="Color.Info" Rounded="true" Striped="true" Size="Size.Large"
+                                   Value="@_dbDownloadProgress" Class="my-7">
+                    <MudText Typo="Typo.subtitle1" Color="Color.Default">
+                        <b>@_dbDownloadProgress.ToString("0.0")%</b>
+                        <MudText Typo="Typo.caption" Color="Color.Default">@_dbDownloadStatusMessage</MudText>
+                    </MudText>
+                </MudProgressLinear>
+            }
+        </MudPaper>
+
+        <!-- Reset Data -->
+        <MudPaper Outlined="true" Class="pa-5 mb-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.RestartAlt" Color="Color.Warning" Size="Size.Large" />
+
+                <MudStack Spacing="1" Class="flex-grow-1">
+                    <MudText Typo="Typo.h6">
+                        Reset Data
+                    </MudText>
+
+                    <MudText Typo="Typo.body2">
+                        Remove all existing local data and download a fresh copy of the latest
+                        data from the cloud.
+                    </MudText>
+                </MudStack>
+            </MudStack>
+            <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.RestartAlt"
+                       FullWidth="true" Disabled="@(_isLoading || !_isDbInit)" OnClick="@OnResetDatabaseClick">
+                Reset Data
+            </MudButton>
+        </MudPaper>
+
+        <!-- Delete All Data -->
+        <MudPaper Outlined="true" Class="pa-5">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" Size="Size.Large" />
+
+                <MudStack Spacing="1" Class="flex-grow-1">
+                    <MudText Typo="Typo.h6">
+                        Delete All Data
+                    </MudText>
+
+                    <MudText Typo="Typo.body2">
+                        Permanently delete all locally stored data. No data will be downloaded
+                        after this action.
+                    </MudText>
+                </MudStack>
+            </MudStack>
+            <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever"
+                       FullWidth="true" Disabled="@(_isLoading || !_isDbInit)" OnClick="@OnDeleteDatabaseClick">
+                Delete All Data
+            </MudButton>
+        </MudPaper>
+
+        <MudText Typo="Typo.caption" Color="Color.Tertiary" Class="d-block mt-6">
+            Note: Cloud-related actions require an active internet connection.
+        </MudText>
+
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private RenderFragment DownloadDatabaseContent => @<MudStack Spacing="2">
+        <MudText Typo="Typo.body1" Class="text-justify">
+            A local database is required before you can continue.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            You may have been redirected here because the page you requested
+            requires database data that has not been downloaded yet.
+            If you opened this page directly, downloading the database will
+            prepare the application for use.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            The database download is
+            <MudText Typo="Typo.body1" Inline="true" Class="font-weight-bold">
+                less than 12 MB
+            </MudText>
+            and may take a few moments depending on your internet connection.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="font-weight-bold text-justify">
+            Do you want to download the database now?
+        </MudText>
+    </MudStack>;
+
+    private RenderFragment ResetDatabaseContent => @<MudStack Spacing="2">
+        <MudText Typo="Typo.body1" Class="text-justify">
+            Resetting the database will remove the currently downloaded local data
+            and download a fresh copy.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            Use this option if the database is outdated, incomplete, or you are
+            experiencing problems with the application.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            The new database download is
+            <MudText Typo="Typo.body1" Inline="true" Class="font-weight-bold">
+                less than 12 MB
+            </MudText>.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="font-weight-bold text-justify">
+            Do you want to reset the database and download a fresh copy?
+        </MudText>
+    </MudStack>;
+
+    private RenderFragment DeleteDatabaseContent => @<MudStack Spacing="2">
+        <MudText Typo="Typo.body1" Class="text-justify">
+            Deleting the database will permanently remove all locally downloaded
+            application data from this device.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            The application may require you to download the database again before
+            you can access pages that depend on it.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Color="Color.Error" Class="font-weight-bold text-justify">
+            This action cannot be undone.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="font-weight-bold text-justify">
+            Do you want to delete the database?
+        </MudText>
+    </MudStack>;
+}

@@ -1,0 +1,39 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="@Color">
+            @if (Icon is not null)
+            {
+                <MudIcon Icon="@Icon" Class="mr-3 mb-n1"/>
+            }
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @Content
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@Color" OnClick="Submit">OK</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public string Icon { get; set; } = Icons.Material.Outlined.QuestionMark;
+
+    [Parameter]
+    public Color Color { get; set; } = Color.Default;
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public RenderFragment? Content { get; set; }
+
+    private void Submit() => MudDialog?.Close(DialogResult.Ok(true));
+
+    private void Cancel() => MudDialog?.Cancel();
+}
