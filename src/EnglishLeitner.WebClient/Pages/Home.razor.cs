@@ -1,17 +1,21 @@
 using EnglishLeitner.EFDesign.Data;
+using EnglishLeitner.WebClient.Components;
 using EnglishLeitner.WebClient.DTOs;
 using EnglishLeitner.WebClient.Pages.Management;
 using EnglishLeitner.WebClient.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.JSInterop;
 using MudBlazor;
 using SqliteWasmBlazor;
 
 namespace EnglishLeitner.WebClient.Pages;
 
 public partial class Home(
+    IJSRuntime jsRuntime,
     NavigationManager nav,
     ISyncService syncService,
+    IDialogService dialogService,
     ISqliteWasmDatabaseService dbService,
     IDbContextFactory<ApplicationDbContext> dbFactory) : IDisposable
 {
@@ -77,7 +81,7 @@ public partial class Home(
             bool isDbInit = await Data.IsDatabaseInitializedAsync(dbService, dbFactory, cancellationToken);
             if (!isDbInit)
             {
-                nav.NavigateTo(Data.GetRoute(nav.Uri));
+                await OpenWelcomeDialogAsync(cancellationToken);
                 return;
             }
 
@@ -100,6 +104,31 @@ public partial class Home(
         }
     }
 
+    private async Task OpenWelcomeDialogAsync(CancellationToken cancellationToken = default)
+    {
+        DialogParameters<GeneralDialog> parameters = new() {
+            { x => x.Title, "Welcome" },
+            { x => x.Content, WelcomeDialogContent },
+            { x => x.Icon, Icons.Material.Outlined.WavingHand },
+            { x => x.Color, Color.Info },
+        };
+
+        DialogOptions options = new()
+        {
+            CloseOnEscapeKey = false,
+            CloseButton = false,
+        };
+
+        IDialogReference dialog = await dialogService.ShowAsync<GeneralDialog>("Delete Server", parameters, options);
+
+        DialogResult? result = await dialog.Result;
+        if (result?.Canceled != true)
+            nav.NavigateTo(Data.GetRoute(nav.Uri));
+        else
+            await GoBackAsync();
+
+    }
+
     private async Task HandleSyncSucceeded()
     {
         await InvokeAsync(async () =>
@@ -107,6 +136,9 @@ public partial class Home(
             await LoadAsync(_disposeCts.Token);
         });
     }
+
+    private async Task GoBackAsync()
+        => await jsRuntime.InvokeVoidAsync("history.back");
 
     public void Dispose()
     {

@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Net;
 using EnglishLeitner.EFDesign.Data;
+using EnglishLeitner.WebClient.Components;
 using EnglishLeitner.WebClient.Settings;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Http;
@@ -236,7 +237,7 @@ public partial class Data(
 
     public async Task OpenDialogAsync(string title, RenderFragment content, string icon, Color color, Func<Task> onSumbit)
     {
-        DialogParameters<DataDialog> parameters = new() {
+        DialogParameters<GeneralDialog> parameters = new() {
             { x => x.Title, title },
             { x => x.Content, content },
             { x => x.Icon, icon },
@@ -249,7 +250,7 @@ public partial class Data(
             CloseButton = true,
         };
 
-        IDialogReference dialog = await dialogService.ShowAsync<DataDialog>("Delete Server", parameters, options);
+        IDialogReference dialog = await dialogService.ShowAsync<GeneralDialog>("Delete Server", parameters, options);
 
         DialogResult? result = await dialog.Result;
         if (result?.Canceled != true)

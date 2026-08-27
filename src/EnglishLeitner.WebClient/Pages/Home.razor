@@ -19,3 +19,42 @@ else
 
     <WordsTable DateRange="_dateRange" />
 }
+
+@code {
+    private RenderFragment WelcomeDialogContent => @<MudStack Spacing="3" Class="welcome-dialog-content">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                <MudIcon Icon="@Icons.Material.Outlined.School" Size="Size.Small" />
+            </MudAvatar>
+
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body2">
+                    <strong>Your English vocabulary learning companion</strong>
+                </MudText>
+            </MudStack>
+        </MudStack>
+
+        <MudDivider />
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            Welcome to our English vocabulary learning platform. This application ("English Leitner") is designed
+            to help you build and retain vocabulary effectively through the proven
+            <strong>Leitner Box method</strong>, a structured spaced-repetition approach
+            that supports long-term memorisation.
+        </MudText>
+
+        <MudText Typo="Typo.body1" Class="text-justify">
+            Your learning data is stored locally and the application works offline directly
+            in your web browser, allowing you to continue studying whenever it is convenient
+            for you. If you wish, you may also synchronise your progress securely through
+            <strong>Google Drive</strong>, helping you keep your data available across
+            compatible devices.
+        </MudText>
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true">
+            To begin, the application needs to download the English vocabulary collection.
+            Please select <strong>OK</strong> to start the download.
+        </MudAlert>
+
+    </MudStack>;
+}

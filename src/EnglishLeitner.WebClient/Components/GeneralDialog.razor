@@ -1,0 +1,18 @@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="@Color">
+            @if (Icon is not null)
+            {
+                <MudIcon Icon="@Icon" Class="mr-3 mb-n1"/>
+            }
+            @Title
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @Content
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@Color" OnClick="Submit">OK</MudButton>
+    </DialogActions>
+</MudDialog>
