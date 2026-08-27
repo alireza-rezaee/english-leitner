@@ -10,9 +10,9 @@ using WordModel = EnglishLeitner.EFDesign.Models.Word;
 namespace EnglishLeitner.WebClient.Components;
 
 public partial class WordsTable(
-    ISyncService SyncService,
-    IDbContextFactory<ApplicationDbContext> DbFactory,
-    NavigationManager Nav) : IDisposable
+    ISyncService syncService,
+    IDbContextFactory<ApplicationDbContext> dbFactory,
+    NavigationManager nav) : IDisposable
 {
     private const string LastReviewKey = "LastReview";
 
@@ -30,12 +30,12 @@ public partial class WordsTable(
         await base.OnAfterRenderAsync(firstRender);
 
         if (firstRender)
-            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
+            syncService.OnSyncSucceeded += HandleSyncSucceeded;
     }
 
     private async Task<TableData<WordModel>> ServerReload(TableState state, CancellationToken token)
     {
-        await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+        await using ApplicationDbContext dbContext = await dbFactory.CreateDbContextAsync();
 
         IQueryable<WordModel>? query = dbContext.Words
             .Include(w => w.Reviews
@@ -101,7 +101,7 @@ x.Reviews.First().Time : DateTime.MinValue),
         if (tableRowClickEventArgs.Item is WordModel word)
         {
             string url = Word.GetRoute(word.Slug);
-            Nav.NavigateTo(url, replace: false);
+            nav.NavigateTo(url, replace: false);
         }
     }
 
@@ -110,6 +110,6 @@ x.Reviews.First().Time : DateTime.MinValue),
 
     public void Dispose()
     {
-        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
+        syncService.OnSyncSucceeded -= HandleSyncSucceeded;
     }
 }

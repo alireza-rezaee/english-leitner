@@ -7,9 +7,9 @@ using Microsoft.EntityFrameworkCore;
 namespace EnglishLeitner.WebClient.Components;
 
 public partial class AvailableWordsAlert(
-    NavigationManager Nav,
-    ISyncService SyncService,
-    IDbContextFactory<ApplicationDbContext> DbFactory) : IDisposable
+    NavigationManager nav,
+    ISyncService syncService,
+    IDbContextFactory<ApplicationDbContext> dbFactory) : IDisposable
 {
     private bool _isLoading = true;
     private int _availableCards = default;
@@ -21,7 +21,7 @@ public partial class AvailableWordsAlert(
         if (firstRender)
         {
             await LoadAsync();
-            SyncService.OnSyncSucceeded += HandleSyncSucceeded;
+            syncService.OnSyncSucceeded += HandleSyncSucceeded;
         }
     }
 
@@ -30,7 +30,7 @@ public partial class AvailableWordsAlert(
         _isLoading = true;
         await InvokeAsync(StateHasChanged);
 
-        await using ApplicationDbContext dbContext = await DbFactory.CreateDbContextAsync();
+        await using ApplicationDbContext dbContext = await dbFactory.CreateDbContextAsync();
 
         DateTime utcNow = DateTime.UtcNow;
         _availableCards = await dbContext.Words
@@ -44,7 +44,7 @@ public partial class AvailableWordsAlert(
     private void NavigateToRandomWord()
     {
         string url = RandomWord.GetRoute();
-        Nav.NavigateTo(url, replace: false);
+        nav.NavigateTo(url, replace: false);
     }
 
     private Task HandleSyncSucceeded()
@@ -52,6 +52,6 @@ public partial class AvailableWordsAlert(
 
     public void Dispose()
     {
-        SyncService.OnSyncSucceeded -= HandleSyncSucceeded;
+        syncService.OnSyncSucceeded -= HandleSyncSucceeded;
     }
 }
