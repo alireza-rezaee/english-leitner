@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>English Leitner Folded-E Logo</title>
+  <desc>Large-format minimalist English Leitner flashcard forming a stylized letter E with teal folded page corner and golden progress marker</desc>
+
+  <!-- Background: Deep Navy Rounded Square -->
+  <rect width="512" height="512" rx="108" fill="#16213E"/>
+
+  <!-- Flashcard Stylized 'E' Structure in Warm White (#F8FAFC) -->
+  <path fill="#F8FAFC" d="
+    M 84 56
+    L 346 56
+    L 346 148
+    L 168 148
+    L 168 214
+    L 326 214
+    A 16 16 0 0 1 342 230
+    L 342 282
+    A 16 16 0 0 1 326 298
+    L 168 298
+    L 168 364
+    L 428 364
+    A 24 24 0 0 1 452 388
+    L 452 432
+    A 24 24 0 0 1 428 456
+    L 84 456
+    A 28 28 0 0 1 56 428
+    L 56 84
+    A 28 28 0 0 1 84 56
+    Z
+  "/>
+
+  <!-- Folded Corner / Page Turn in Teal (#35C6B3) with smooth corner -->
+  <path fill="#35C6B3" d="
+    M 346 56
+    L 436 146
+    A 16 16 0 0 1 436 166
+    L 364 166
+    A 18 18 0 0 1 346 148
+    Z
+  "/>
+
+  <!-- Golden Yellow Leitner Progress Marker (#FFB703) -->
+  <circle cx="400" cy="256" r="32" fill="#FFB703"/>
+</svg>
