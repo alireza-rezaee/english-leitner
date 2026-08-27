@@ -7,9 +7,10 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Outlined.Home" Color="Color.Inherit" Edge="Edge.Start"
-                       Href="/" />
-        <MudText Typo="Typo.h6" Class="ml-2">English Leitner</MudText>
+        <MudLink Href="/" Typo="Typo.body2" Underline="Underline.None" Color="Color.Default" Class="d-inline-flex align-center">
+            <MudImage Src="icon-32.png" Alt="English Leitner Logo" />
+            <MudText Inline="true" Class="ml-2"><strong><abbr title="English">Eng.</abbr> Leitner</strong></MudText>
+        </MudLink>
         <MudSpacer />
         <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@DarkModeToggleAsync" />
         <DriveSyncButton />
